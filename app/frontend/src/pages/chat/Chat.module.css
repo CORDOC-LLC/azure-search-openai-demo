@@ -33,6 +33,7 @@
     font-weight: 600;
     margin-top: 0;
     margin-bottom: 30px;
+    text-align: center;
 }
 
 .chatEmptyStateSubtitle {
@@ -45,9 +46,16 @@
         padding-top: 0;
     }
 
+    .chatRoot {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
     .chatEmptyStateTitle {
-        font-size: 3rem;
+        font-size: 2rem;
         margin-bottom: 0px;
+        text-align: center;
     }
 }
 
@@ -65,9 +73,8 @@
 
 .chatMessageGpt {
     margin-bottom: 20px;
-    max-width: 80%;
+    max-width: 100%;
     display: flex;
-    min-width: 500px;
 }
 
 .chatMessageGptMinWidth {

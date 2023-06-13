@@ -12,10 +12,18 @@ export function parseAnswerToHtml(answer: string, onCitationClicked: (citationFi
     const followupQuestions: string[] = [];
 
     // Extract any follow-up questions that might be in the answer
-    let parsedAnswer = answer.replace(/<<([^>>]+)>>/g, (match, content) => {
-        followupQuestions.push(content);
+    let parsedAnswer = answer.replace(/<<(.*?)>>|Next Questions:\s*(.*?)(?=(?:<<|$))/g, (match, content, nextQuestions) => {
+        if (content) {
+            followupQuestions.push(content);
+        }
+        if (nextQuestions) {
+            followupQuestions.push(nextQuestions);
+        }
         return "";
     });
+
+
+    followupQuestions.push("Tell me more");
 
     // trim any whitespace from the end of the answer after removing follow-up questions
     parsedAnswer = parsedAnswer.trim();

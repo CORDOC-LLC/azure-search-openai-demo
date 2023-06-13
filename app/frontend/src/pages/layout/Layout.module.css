@@ -1,3 +1,4 @@
+
 .layout {
     display: flex;
     flex-direction: column;
@@ -20,7 +21,7 @@
 .headerTitleContainer {
     display: flex;
     align-items: center;
-    margin-right: 40px;
+    margin-right: auto;
     color: #f2f2f2;
     text-decoration: none;
 }
@@ -75,4 +76,37 @@
 
 .githubLogo {
     height: 20px;
+}
+
+.footer {
+    background-color: #f0f0f0;
+    text-align: center;
+    padding: 20px;
+    font-size: 14px;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 10px; /* Adjust the gap value based on your desired spacing */
+}
+
+.footerRow {
+    /* Apply styles to each row */
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    gap: 10px; /* Adjust the value to increase or decrease spacing between buttons horizontally */
+    margin-bottom: 10px; /* Adjust the value to increase or decrease spacing between rows vertically */
+}
+
+.my-link {
+    color: #000; /* Link text color */
+    text-decoration: none; /* Remove underline */
+    margin-right: 12px; /* Add spacing between links */
+    font-size: xx-small;
+}
+
+.my-link:hover {
+    text-decoration: underline; /* Add underline on hover */
 }

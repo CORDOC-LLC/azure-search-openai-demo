@@ -10,7 +10,7 @@ from text import nonewlines
 class RetrieveThenReadApproach(Approach):
 
     template = \
-"You are an intelligent assistant helping Contoso Inc employees with their healthcare plan questions and employee handbook questions. " + \
+"You are an intelligent assistant helping cardiologists with their questions regarding patient management guidelines and expert recommendations. " + \
 "Use 'you' to refer to the individual asking the questions even if they ask with 'I'. " + \
 "Answer the following question using only the data provided in the sources below. " + \
 "For tabular information return it as an html table. Do not return markdown format. "  + \
@@ -19,16 +19,16 @@ class RetrieveThenReadApproach(Approach):
 """
 
 ###
-Question: 'What is the deductible for the employee plan for a visit to Overlake in Bellevue?'
+Question: 'What are the medicines recommended for treatment of elevated blood cholesterol levels?'
 
 Sources:
-info1.txt: deductibles depend on whether you are in-network or out-of-network. In-network deductibles are $500 for employee and $1000 for family. Out-of-network deductibles are $1000 for employee and $2000 for family.
-info2.pdf: Overlake is in-network for the employee plan.
-info3.pdf: Overlake is the name of the area that includes a park and ride near Bellevue.
-info4.pdf: In-network institutions include Overlake, Swedish and others in the region
+info1.txt: Statins are commonly used for treatment of elevated blood cholesterol levels.
+info2.pdf: If the patient is statin intolerant, non-statin medicines like ezetimibe can be used for treatment of cholesterol levels.
+info3.pdf: Examples of statins include atorvastatin, simvastatin, rosuvastatin and pravastatin.
+info4.pdf: If statins are not able to treat cholesterol levels to the target, additional non-statins medicines should be used to further lower cholesterol levels
 
 Answer:
-In-network deductibles are $500 for employee and $1000 for family [info1.txt] and Overlake is in-network for the employee plan [info2.pdf][info4.pdf].
+Statins like atorvastatin, rosuvastatin and pravastatin are commonly used to lower cholesterol levels [info1.txt][info3.pdf]. If a patient is statin intolerant, you can consider non-statin medicines like ezetimibe, evolocumab and alirocumab to reduce cholesterol levels to target. [info2.pdf][info4.pdf].
 
 ###
 Question: '{q}'?

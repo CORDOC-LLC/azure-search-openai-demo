@@ -25,6 +25,13 @@ KB_FIELDS_CONTENT = os.environ.get("KB_FIELDS_CONTENT") or "content"
 KB_FIELDS_CATEGORY = os.environ.get("KB_FIELDS_CATEGORY") or "category"
 KB_FIELDS_SOURCEPAGE = os.environ.get("KB_FIELDS_SOURCEPAGE") or "sourcepage"
 
+
+COSMODB_ENDPOINT = os.environ.get("COSMOSDB_ENDPOINT");
+COSMODB_KEY = os.environ.get("COSMOSDB_KEY");
+COSMODB_databaseId = os.environ.get("COSMOSDB_DATABASE");
+COSMODB_containerId = os.environ.get("COSMOSDB_CONTAINER");
+
+
 # Use the current user identity to authenticate with Azure OpenAI, Cognitive Search and Blob Storage (no secrets needed, 
 # just use 'az login' locally, and managed identity when deployed on Azure). If you need to use keys, use separate AzureKeyCredential instances with the 
 # keys for each service

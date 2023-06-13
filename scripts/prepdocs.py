@@ -5,6 +5,7 @@ import html
 import io
 import re
 import time
+import csv
 from pypdf import PdfReader, PdfWriter
 from azure.identity import AzureDeveloperCliCredential
 from azure.core.credentials import AzureKeyCredential
@@ -53,6 +54,23 @@ if not args.localpdfparser:
         exit(1)
     formrecognizer_creds = default_creds if args.formrecognizerkey == None else AzureKeyCredential(args.formrecognizerkey)
 
+def get_link_from_csv(filename):
+    # Remove './data/' prefix from filename
+    filename = filename.replace('./data/', '')
+
+    # Read the CSV file and retrieve the link corresponding to the filename
+    with open('csvmeta.csv', 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if row[0] == filename:
+                if len(row) > 1:
+                    return row[1]  # Return the link value as a plain string
+                else:
+                    return ""  # Return an empty string if no link is found
+    return ""  # Return an empty string if the link is not found
+
+
+
 def blob_name_from_file_page(filename, page = 0):
     if os.path.splitext(filename)[1].lower() == ".pdf":
         return os.path.splitext(os.path.basename(filename))[0] + f"-{page}" + ".pdf"
@@ -60,6 +78,8 @@ def blob_name_from_file_page(filename, page = 0):
         return os.path.basename(filename)
 
 def upload_blobs(filename):
+    link = get_link_from_csv(filename)  # Retrieve the link from the CSV file
+    print(filename,link)
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
     blob_container = blob_service.get_container_client(args.container)
     if not blob_container.exists():
@@ -71,17 +91,19 @@ def upload_blobs(filename):
         pages = reader.pages
         for i in range(len(pages)):
             blob_name = blob_name_from_file_page(filename, i)
+            metadata = {'link': link}
             if args.verbose: print(f"\tUploading blob for page {i} -> {blob_name}")
             f = io.BytesIO()
             writer = PdfWriter()
             writer.add_page(pages[i])
             writer.write(f)
             f.seek(0)
-            blob_container.upload_blob(blob_name, f, overwrite=True)
+            blob_container.upload_blob(blob_name, f, overwrite=True, metadata=metadata)
     else:
         blob_name = blob_name_from_file_page(filename)
-        with open(filename,"rb") as data:
-            blob_container.upload_blob(blob_name, data, overwrite=True)
+        metadata = {'link': link}
+        with open(filename, "rb") as data:
+            blob_container.upload_blob(blob_name, data, overwrite=True, metadata=metadata)
 
 def remove_blobs(filename):
     if args.verbose: print(f"Removing blobs for '{filename or '<all>'}'")

@@ -13,9 +13,11 @@
     "@fluentui/react-icons": "^2.0.195",
     "@react-spring/web": "^9.7.1",
     "dompurify": "^3.0.1",
+    "generate-react-cli": "^8.3.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.8.1"
+    "react-router-dom": "^6.8.1",
+    "react-ga4":"2.1.0"
   },
   "devDependencies": {
     "@types/dompurify": "^2.4.0",

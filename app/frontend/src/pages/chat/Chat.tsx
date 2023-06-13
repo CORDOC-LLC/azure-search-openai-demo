@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { Checkbox, Panel, DefaultButton, TextField, SpinButton } from "@fluentui/react";
-import { SparkleFilled } from "@fluentui/react-icons";
+import { BookOpenFilled } from "@fluentui/react-icons";
 
 import styles from "./Chat.module.css";
 
@@ -12,6 +12,7 @@ import { UserChatMessage } from "../../components/UserChatMessage";
 import { AnalysisPanel, AnalysisPanelTabs } from "../../components/AnalysisPanel";
 import { SettingsButton } from "../../components/SettingsButton";
 import { ClearChatButton } from "../../components/ClearChatButton";
+import { CosmosClient } from "@azure/cosmos";
 
 const Chat = () => {
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
@@ -20,7 +21,7 @@ const Chat = () => {
     const [useSemanticRanker, setUseSemanticRanker] = useState<boolean>(true);
     const [useSemanticCaptions, setUseSemanticCaptions] = useState<boolean>(false);
     const [excludeCategory, setExcludeCategory] = useState<string>("");
-    const [useSuggestFollowupQuestions, setUseSuggestFollowupQuestions] = useState<boolean>(false);
+    const [useSuggestFollowupQuestions, setUseSuggestFollowupQuestions] = useState<boolean>(true);
 
     const lastQuestionRef = useRef<string>("");
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
@@ -41,6 +42,7 @@ const Chat = () => {
         setIsLoading(true);
         setActiveCitation(undefined);
         setActiveAnalysisPanelTab(undefined);
+        let result;
 
         try {
             const history: ChatTurn[] = answers.map(a => ({ user: a[0], bot: a[1].answer }));
@@ -56,13 +58,37 @@ const Chat = () => {
                     suggestFollowupQuestions: useSuggestFollowupQuestions
                 }
             };
-            const result = await chatApi(request);
+            result = await chatApi(request);
             setAnswers([...answers, [question, result]]);
+            // Save result to Cosmos DB
+
         } catch (e) {
             setError(e);
         } finally {
             setIsLoading(false);
+            const endpoint = import.meta.env.VITE_COSMOSDB_ENDPOINT;
+            const key = import.meta.env.VITE_COSMOSDB_KEY;
+
+            if (!endpoint || !key) {
+                // Handle the case when the endpoint or key is missing
+                throw new Error('Endpoint or key is missing');
+            }
+            const client = new CosmosClient({ endpoint, key });
+            const databaseId = 'ToDoList';
+            const containerId = 'Items';
+            const database = client.database(databaseId);
+            const container = database.container(containerId);
+            const item = {
+                question,
+                result,
+                timestamp: new Date().toISOString(),
+                website:'cliniwiz.com'
+            };
+
+
+            await container.items.create(item);
         }
+
     };
 
     const clearChat = () => {
@@ -134,9 +160,10 @@ const Chat = () => {
                 <div className={styles.chatContainer}>
                     {!lastQuestionRef.current ? (
                         <div className={styles.chatEmptyState}>
-                            <SparkleFilled fontSize={"120px"} primaryFill={"rgba(115, 118, 225, 1)"} aria-hidden="true" aria-label="Chat logo" />
-                            <h1 className={styles.chatEmptyStateTitle}>Chat with your data</h1>
-                            <h2 className={styles.chatEmptyStateSubtitle}>Ask anything or try an example</h2>
+                            <BookOpenFilled fontSize={"60px"} primaryFill={"rgba(145, 5, 23, 1)"} aria-hidden="true" aria-label="Book logo" />
+                            <h4 className={styles.chatEmptyStateTitle}>AI-Powered Medical Guidelines Search </h4>
+
+                            {/* <h2 className={styles.chatEmptyStateSubtitle}>Ask anything or try an example</h2> */}
                             <ExampleList onExampleClicked={onExampleClicked} />
                         </div>
                     ) : (
@@ -181,7 +208,7 @@ const Chat = () => {
                     <div className={styles.chatInput}>
                         <QuestionInput
                             clearOnSend
-                            placeholder="Type a new question (e.g. does my plan cover annual eye exams?)"
+                            placeholder="Type a new question (e.g. is How to prevent trastuzumab-induced cardiotoxicity??)"
                             disabled={isLoading}
                             onSend={question => makeApiRequest(question)}
                         />
@@ -193,7 +220,7 @@ const Chat = () => {
                         className={styles.chatAnalysisPanel}
                         activeCitation={activeCitation}
                         onActiveTabChanged={x => onToggleTab(x, selectedAnswer)}
-                        citationHeight="810px"
+                        citationHeight="756px"
                         answer={answers[selectedAnswer][1]}
                         activeTab={activeAnalysisPanelTab}
                     />
@@ -239,12 +266,12 @@ const Chat = () => {
                         onChange={onUseSemanticCaptionsChange}
                         disabled={!useSemanticRanker}
                     />
-                    <Checkbox
+                    {/* <Checkbox
                         className={styles.chatSettingsSeparator}
                         checked={useSuggestFollowupQuestions}
                         label="Suggest follow-up questions"
                         onChange={onUseSuggestFollowupQuestionsChange}
-                    />
+                    /> */}
                 </Panel>
             </div>
         </div>
