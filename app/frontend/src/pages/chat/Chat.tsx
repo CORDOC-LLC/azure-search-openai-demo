@@ -82,7 +82,7 @@ const Chat = () => {
                 question,
                 result,
                 timestamp: new Date().toISOString(),
-                website:'cliniwiz.com'
+                website: 'cliniwiz.com'
             };
 
 
@@ -99,7 +99,7 @@ const Chat = () => {
         setAnswers([]);
     };
 
-    useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth" }), [isLoading]);
+    useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), [isLoading]);
 
     const onPromptTemplateChange = (_ev?: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         setPromptTemplate(newValue || "");
@@ -195,7 +195,9 @@ const Chat = () => {
                             )}
                             {error ? (
                                 <>
+
                                     <UserChatMessage message={lastQuestionRef.current} />
+
                                     <div className={styles.chatMessageGptMinWidth}>
                                         <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
                                     </div>
