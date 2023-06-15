@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { Stack, IconButton } from "@fluentui/react";
 import DOMPurify from "dompurify";
 
@@ -28,9 +28,41 @@ export const Answer = ({
     showFollowupQuestions
 }: Props) => {
     const parsedAnswer = useMemo(() => parseAnswerToHtml(answer.answer, onCitationClicked), [answer]);
-
     const sanitizedAnswerHtml = DOMPurify.sanitize(parsedAnswer.answerHtml);
+    const sanitizedAnswerHtmlRef = useRef<string>(sanitizedAnswerHtml);
 
+    useEffect(() => {
+        sanitizedAnswerHtmlRef.current = sanitizedAnswerHtml;
+    }, [sanitizedAnswerHtml]);
+
+    const shareAnswer = async () => {
+        if (navigator.share) {
+            try {
+                const title = 'CliniWiz: AI-based medical search tool';
+                const plainTextMessage = `${sanitizedAnswerHtmlRef.current}`;
+
+                await navigator.share({
+                    title,
+                    text: plainTextMessage,
+                    url: window.location.href
+                });
+
+                console.log('Shared successfully');
+            } catch (error) {
+                console.error('Error sharing:', error);
+            }
+        } else {
+            console.log('Share API not supported');
+        }
+    };
+
+    const getPlainTextContent = () => {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sanitizedAnswerHtmlRef.current;
+        return tempDiv.textContent || tempDiv.innerText || '';
+    };
+
+    const plainTextContent = useMemo(() => getPlainTextContent(), []);
     return (
         <Stack className={`${styles.answerContainer} ${isSelected && styles.selected}`} verticalAlign="space-between">
             <Stack.Item>
@@ -52,6 +84,14 @@ export const Answer = ({
                             ariaLabel="Show supporting content"
                             onClick={() => onSupportingContentClicked()}
                             disabled={!answer.data_points.length}
+                        />
+                        <IconButton
+                            id="shareButton"
+                            style={{ color: "black" }}
+                            iconProps={{ iconName: "Share" }}
+                            title="Share answer"
+                            ariaLabel="Share answer"
+                            onClick={shareAnswer}
                         />
                     </div>
                 </Stack>

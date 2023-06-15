@@ -9,11 +9,11 @@ export type ExampleModel = {
 
 const EXAMPLES: ExampleModel[] = [
     {
-        text: "How to manage cardiac dysfunction during anthracycline therapy?",
-        value: "How to manage cardiac dysfunction during anthracycline therapy?"
+        text: "How to diagnose left ventricular non-compaction?",
+        value: "How to diagnose left ventricular non-compaction?"
     },
-    { text: "How to prevent atrial fibrillation?", value: "How to prevent atrial fibrillation?" },
-    { text: "Which trials support using beta-blockers for heart failure?", value: "Which trials support using beta-blockers for heart failure?" }
+    { text: "Is there a benefit of viability assessment prior to bypass?", value: "Is there a benefit of viability assessment prior to bypass?" },
+    { text: "What are the indications of AVR in aortic regurgitation?", value: "What are the indications of AVR in aortic regurgitation?" }
 ];
 
 interface Props {
