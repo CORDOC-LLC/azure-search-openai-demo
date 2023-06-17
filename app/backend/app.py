@@ -83,7 +83,6 @@ def static_file(path):
 @app.route("/content/<path>")
 def content_file(path):
     blob = blob_container.get_blob_client(path).download_blob()
-    #blob_properties = blob.get_blob_properties()
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
