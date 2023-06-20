@@ -7,6 +7,7 @@ import re
 import time
 import csv
 import openai
+
 from pypdf import PdfReader, PdfWriter
 from azure.identity import AzureDeveloperCliCredential
 from azure.core.credentials import AzureKeyCredential
@@ -84,18 +85,23 @@ openai.api_version = "2022-12-01"
 
 
 def get_metadata_from_csv(filename):
+    filename = os.path.splitext(filename)[0]  # Strip the file extension
     filename = filename.replace('./data/', '')
-    with open('colabtrial.csv', 'r',encoding='utf-8') as file:
+    with open('colabtrial.csv', 'r') as file:
         reader = csv.reader(file)
         for row in reader:
-            current_filename = row[4].strip('"')
+            current_filename = os.path.splitext(row[4].strip('"'))[0]  # Strip the file extension from the CSV filename
             if current_filename == filename.strip('"'):
                 citation = row[0].strip('"')
                 date = row[2].strip('"')
                 link = row[11].strip('"')
                 document_type = row[13].strip('"')
+
+                # Replace \u2013 with dash
+                citation = citation.replace('\u2013', '-')
+
                 return citation, date, link, document_type
-    return None, None, None, None,  # Return None for all metadata if no match is found
+    return None, None, None, None
 
 def blob_name_from_file_page(filename, page = 0):
     if os.path.splitext(filename)[1].lower() == ".pdf":
