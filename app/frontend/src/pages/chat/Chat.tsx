@@ -1,11 +1,6 @@
 import { useRef, useState, useEffect } from "react";
-<<<<<<< HEAD
-import { Checkbox, Panel, DefaultButton, TextField, SpinButton } from "@fluentui/react";
+import { Checkbox, Panel, DefaultButton, TextField, SpinButton,  Dropdown, IDropdownOption } from "@fluentui/react";
 import { BookOpenFilled } from "@fluentui/react-icons";
-=======
-import { Checkbox, Panel, DefaultButton, TextField, SpinButton, Dropdown, IDropdownOption } from "@fluentui/react";
-import { SparkleFilled } from "@fluentui/react-icons";
->>>>>>> azure-search-openai-dem/vectors/vectors
 
 import styles from "./Chat.module.css";
 
@@ -284,11 +279,8 @@ const Chat = () => {
                         checked={useSuggestFollowupQuestions}
                         label="Suggest follow-up questions"
                         onChange={onUseSuggestFollowupQuestionsChange}
-<<<<<<< HEAD
                     /> */}
-=======
-                    />
-                    <Dropdown
+                     <Dropdown
                         className={styles.chatSettingsSeparator}
                         label="Retrieval mode"
                         options={[
@@ -299,7 +291,6 @@ const Chat = () => {
                         required
                         onChange={onRetrievalModeChange}
                     />
->>>>>>> azure-search-openai-dem/vectors/vectors
                 </Panel>
             </div>
         </div>

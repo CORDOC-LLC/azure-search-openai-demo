@@ -5,11 +5,8 @@ import html
 import io
 import re
 import time
-<<<<<<< HEAD
 import csv
-=======
 import openai
->>>>>>> azure-search-openai-dem/vectors/vectors
 from pypdf import PdfReader, PdfWriter
 from azure.identity import AzureDeveloperCliCredential
 from azure.core.credentials import AzureKeyCredential
@@ -61,24 +58,6 @@ if not args.localpdfparser:
         exit(1)
     formrecognizer_creds = default_creds if args.formrecognizerkey == None else AzureKeyCredential(args.formrecognizerkey)
 
-<<<<<<< HEAD
-def get_link_from_csv(filename):
-    # Remove './data/' prefix from filename
-    filename = filename.replace('./data/', '')
-
-    # Read the CSV file and retrieve the link corresponding to the filename
-    with open('csvmeta.csv', 'r') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            if row[0] == filename:
-                if len(row) > 1:
-                    return row[1]  # Return the link value as a plain string
-                else:
-                    return ""  # Return an empty string if no link is found
-    return ""  # Return an empty string if the link is not found
-
-
-=======
 if args.openaikey == None:
     openai.api_key = azd_credential.get_token("https://cognitiveservices.azure.com/.default").token
     openai.api_type = "azure_ad"
@@ -87,7 +66,36 @@ else:
     openai.api_key = args.openaikey
 openai.api_base = f"https://{args.openaiservice}.openai.azure.com"
 openai.api_version = "2022-12-01"
->>>>>>> azure-search-openai-dem/vectors/vectors
+
+""" def get_link_from_csv(filename):
+    # Remove './data/' prefix from filename
+    filename = filename.replace('./data/', '')
+
+    # Read the CSV file and retrieve the link corresponding to the filename
+    with open('colabtrial.csv', 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if row[0] == filename:
+                if len(row) > 1:
+                    return row[1]  # Return the link value as a plain string
+                else:
+                    return ""  # Return an empty string if no link is found
+    return ""  # Return an empty string if the link is not found """
+
+
+def get_metadata_from_csv(filename):
+    filename = filename.replace('./data/', '')
+    with open('colabtrial.csv', 'r',encoding='utf-8') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            current_filename = row[4].strip('"')
+            if current_filename == filename.strip('"'):
+                citation = row[0].strip('"')
+                date = row[2].strip('"')
+                link = row[11].strip('"')
+                document_type = row[13].strip('"')
+                return citation, date, link, document_type
+    return None, None, None, None,  # Return None for all metadata if no match is found
 
 def blob_name_from_file_page(filename, page = 0):
     if os.path.splitext(filename)[1].lower() == ".pdf":
@@ -96,8 +104,11 @@ def blob_name_from_file_page(filename, page = 0):
         return os.path.basename(filename)
 
 def upload_blobs(filename):
-    link = get_link_from_csv(filename)  # Retrieve the link from the CSV file
-    print(filename,link)
+    citation, date, link, document_type = get_metadata_from_csv(filename)
+    print("Citation:", citation)
+    print("Date:", date)
+    print("Link:", link)
+    print("Document Type:", document_type)
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
     blob_container = blob_service.get_container_client(args.container)
     if not blob_container.exists():
@@ -109,7 +120,7 @@ def upload_blobs(filename):
         pages = reader.pages
         for i in range(len(pages)):
             blob_name = blob_name_from_file_page(filename, i)
-            metadata = {'link': link}
+            metadata = {'Citation':citation, 'Date':date, 'Link': link, 'Document type':document_type}
             if args.verbose: print(f"\tUploading blob for page {i} -> {blob_name}")
             f = io.BytesIO()
             writer = PdfWriter()
@@ -119,7 +130,12 @@ def upload_blobs(filename):
             blob_container.upload_blob(blob_name, f, overwrite=True, metadata=metadata)
     else:
         blob_name = blob_name_from_file_page(filename)
-        metadata = {'link': link}
+        metadata = {
+    'link': link,
+    'citation': citation,
+    'date': date,
+    'type': document_type
+}
         with open(filename, "rb") as data:
             blob_container.upload_blob(blob_name, data, overwrite=True, metadata=metadata)
 
