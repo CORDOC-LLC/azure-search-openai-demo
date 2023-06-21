@@ -87,15 +87,15 @@ openai.api_version = "2022-12-01"
 def get_metadata_from_csv(filename):
     filename = os.path.splitext(filename)[0]  # Strip the file extension
     filename = filename.replace('./data/', '')
-    with open('colabtrial.csv', 'r') as file:
+    with open('FinalACCLinksALL.csv', 'r') as file:
         reader = csv.reader(file)
         for row in reader:
-            current_filename = os.path.splitext(row[4].strip('"'))[0]  # Strip the file extension from the CSV filename
+            current_filename = os.path.splitext(row[0].strip('"'))[0]  # Strip the file extension from the CSV filename
             if current_filename == filename.strip('"'):
-                citation = row[0].strip('"')
+                citation = row[1].strip('"')
                 date = row[2].strip('"')
-                link = row[11].strip('"')
-                document_type = row[13].strip('"')
+                link = row[3].strip('"')
+                document_type = row[4].strip('"')
 
                 # Replace \u2013 with dash
                 citation = citation.replace('\u2013', '-')
