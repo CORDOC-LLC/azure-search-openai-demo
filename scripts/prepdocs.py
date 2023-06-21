@@ -126,7 +126,7 @@ def upload_blobs(filename):
         pages = reader.pages
         for i in range(len(pages)):
             blob_name = blob_name_from_file_page(filename, i)
-            metadata = {'Citation':citation, 'Date':date, 'Link': link, 'Document type':document_type}
+            metadata = {'citation':citation, 'date':date, 'link': link, 'document_type':document_type}
             if args.verbose: print(f"\tUploading blob for page {i} -> {blob_name}")
             f = io.BytesIO()
             writer = PdfWriter()
@@ -136,12 +136,7 @@ def upload_blobs(filename):
             blob_container.upload_blob(blob_name, f, overwrite=True, metadata=metadata)
     else:
         blob_name = blob_name_from_file_page(filename)
-        metadata = {
-    'link': link,
-    'citation': citation,
-    'date': date,
-    'type': document_type
-}
+        metadata = {'citation':citation, 'date':date, 'link': link, 'document_type':document_type}
         with open(filename, "rb") as data:
             blob_container.upload_blob(blob_name, data, overwrite=True, metadata=metadata)
 
