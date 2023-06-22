@@ -16,6 +16,9 @@ from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import *
 from azure.search.documents import SearchClient
 from azure.ai.formrecognizer import DocumentAnalysisClient
+import logging
+
+logging.basicConfig(filename='app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 MAX_SECTION_LENGTH = 1000
 SENTENCE_SEARCH_LIMIT = 100
@@ -84,6 +87,24 @@ openai.api_version = "2022-12-01"
     return ""  # Return an empty string if the link is not found """
 
 
+import logging
+
+def is_azure_compatible(citation):
+    # Check size of the citation
+    if len(citation.encode('utf-8')) > 8000:
+        return (False, "Metadata is larger than 8KB")
+    
+    # Check for control characters
+    control_chars = dict.fromkeys(range(32)).keys()
+    if any(char in citation for char in control_chars):
+        return (False, "Metadata contains control characters")
+
+    # Check for non-ASCII characters
+    if not citation.isascii():
+        return (False, "Metadata contains non-ASCII characters")
+
+    return (True, "")
+
 def get_metadata_from_csv(filename):
     filename = os.path.splitext(filename)[0]  # Strip the file extension
     filename = filename.replace('./data/', '')
@@ -110,35 +131,52 @@ def blob_name_from_file_page(filename, page = 0):
         return os.path.basename(filename)
 
 def upload_blobs(filename):
-    citation, date, link, document_type = get_metadata_from_csv(filename)
-    print("Citation:", citation)
-    print("Date:", date)
-    print("Link:", link)
-    print("Document Type:", document_type)
-    blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
-    blob_container = blob_service.get_container_client(args.container)
-    if not blob_container.exists():
-        blob_container.create_container()
+    try:
+        citation, date, link, document_type = get_metadata_from_csv(filename)
 
-    # if file is PDF split into pages and upload each page as a separate blob
-    if os.path.splitext(filename)[1].lower() == ".pdf":
-        reader = PdfReader(filename)
-        pages = reader.pages
-        for i in range(len(pages)):
-            blob_name = blob_name_from_file_page(filename, i)
-            metadata = {'citation':citation, 'date':date, 'link': link, 'document_type':document_type}
-            if args.verbose: print(f"\tUploading blob for page {i} -> {blob_name}")
-            f = io.BytesIO()
-            writer = PdfWriter()
-            writer.add_page(pages[i])
-            writer.write(f)
-            f.seek(0)
-            blob_container.upload_blob(blob_name, f, overwrite=True, metadata=metadata)
-    else:
-        blob_name = blob_name_from_file_page(filename)
-        metadata = {'citation':citation, 'date':date, 'link': link, 'document_type':document_type}
-        with open(filename, "rb") as data:
-            blob_container.upload_blob(blob_name, data, overwrite=True, metadata=metadata)
+        print("Citation:", citation)
+        print("Date:", date)
+        print("Link:", link)
+        print("Document Type:", document_type)
+
+        if not citation or not date or not link or not document_type:
+            logging.warning(f"Metadata not found or inappropriate format for file {filename}")
+            save_invalid_metadata_filename(filename)
+            metadata = None
+        else:
+            if not is_azure_compatible(citation):
+                logging.warning(f"Citation has characters not permitted by Azure for file {filename}")
+                save_invalid_metadata_filename(filename)
+                metadata = None
+            else:
+                citation = citation.replace('\u2013', '-')
+                metadata = {'citation': citation, 'date': date, 'link': link, 'document_type': document_type}
+
+        # Initialize Azure blob service
+        blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
+        blob_container = blob_service.get_container_client(args.container)
+        if not blob_container.exists():
+            blob_container.create_container()
+
+        if os.path.splitext(filename)[1].lower() == ".pdf":
+            reader = PdfReader(filename)
+            pages = reader.pages
+            for i in range(len(pages)):
+                blob_name = blob_name_from_file_page(filename, i)
+                if metadata:
+                    blob_container.upload_blob(blob_name, pages[i], overwrite=True, metadata=metadata)
+                else:
+                    blob_container.upload_blob(blob_name, pages[i], overwrite=True)
+        else:
+            blob_name = blob_name_from_file_page(filename)
+            with open(filename, "rb") as data:
+                if metadata:
+                    blob_container.upload_blob(blob_name, data, overwrite=True, metadata=metadata)
+                else:
+                    blob_container.upload_blob(blob_name, data, overwrite=True)
+    except Exception as e:
+        logging.error(f"Error in uploading blob for file {filename}. Exception: {e}")
+
 
 def remove_blobs(filename):
     if args.verbose: print(f"Removing blobs for '{filename or '<all>'}'")

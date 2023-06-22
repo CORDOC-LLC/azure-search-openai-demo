@@ -89,10 +89,13 @@ def static_file(path):
 @app.route("/content/<path>")
 def content_file(path):
     blob = blob_container.get_blob_client(path).download_blob()
+    blob = blob_client.download_blob()
+    blob_properties = blob_client.get_blob_properties()
+    metadata = blob_properties.metadata
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
-    return blob.readall(), 200, {"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"}
+    return blob.readall(), metadata, 200, {"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"}
     
 @app.route("/ask", methods=["POST"])
 def ask():

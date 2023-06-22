@@ -38,7 +38,7 @@ export const Answer = ({
     const shareAnswer = async () => {
         if (navigator.share) {
             try {
-                const title = 'CliniWiz: AI-based medical search tool';
+                const title = "CliniWiz: AI-based medical search tool";
                 const plainTextMessage = `${sanitizedAnswerHtmlRef.current}`;
 
                 await navigator.share({
@@ -47,19 +47,19 @@ export const Answer = ({
                     url: window.location.href
                 });
 
-                console.log('Shared successfully');
+                console.log("Shared successfully");
             } catch (error) {
-                console.error('Error sharing:', error);
+                console.error("Error sharing:", error);
             }
         } else {
-            console.log('Share API not supported');
+            console.log("Share API not supported");
         }
     };
 
     const getPlainTextContent = () => {
-        const tempDiv = document.createElement('div');
+        const tempDiv = document.createElement("div");
         tempDiv.innerHTML = sanitizedAnswerHtmlRef.current;
-        return tempDiv.textContent || tempDiv.innerText || '';
+        return tempDiv.textContent || tempDiv.innerText || "";
     };
 
     const plainTextContent = useMemo(() => getPlainTextContent(), []);
