@@ -4,7 +4,7 @@ import { BookOpenFilled } from "@fluentui/react-icons";
 
 import styles from "./Chat.module.css";
 
-import { chatApi, RetrievalMode, Approaches, AskResponse, ChatRequest, ChatTurn, } from "../../api";
+import { chatApi, RetrievalMode, Approaches, AskResponse, ChatRequest, ChatTurn } from "../../api";
 import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
@@ -30,6 +30,30 @@ interface AzureData {
     // add other properties as needed
 }
 
+interface FuncAnswerProps {
+    azureData: AzureData | null;
+}
+
+const FuncAnswer: React.FC<FuncAnswerProps> = ({ azureData }) => {
+    if (!azureData) return null; // or some placeholder when azureData is not available
+
+    return (
+        <div className={styles.azureData}>
+            <h2>Additional Authentic Information</h2>
+            <h3>{azureData.answer}</h3>
+            <ul>
+                {azureData.documents.map((doc, index) => (
+                    <li key={index}>
+                        <Link href={doc.metadata.source} target="_blank">
+                            {doc.metadata.page_title}
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
+
 const SERVERLESS_FUNCTION_URL = "http://localhost:7777/api/searchFunction";
 
 const Chat = () => {
@@ -46,6 +70,9 @@ const Chat = () => {
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isLoadingChatApi, setIsLoadingChatApi] = useState<boolean>(false);
+    const [isLoadingAzureFunction, setIsLoadingAzureFunction] = useState<boolean>(false);
+
     const [error, setError] = useState<unknown>();
 
     const [activeCitation, setActiveCitation] = useState<string>();
@@ -55,14 +82,14 @@ const Chat = () => {
     const [answers, setAnswers] = useState<[user: string, response: AskResponse][]>([]);
     const [azureData, setAzureData] = useState<AzureData | null>(null);
 
-
     const makeApiRequest = async (question: string) => {
         lastQuestionRef.current = question;
         error && setError(undefined);
-        setIsLoading(true);
+        setIsLoadingChatApi(true);
+        setIsLoadingAzureFunction(true);
         setActiveCitation(undefined);
         setActiveAnalysisPanelTab(undefined);
-    
+
         const history: ChatTurn[] = answers.map(a => ({ user: a[0], bot: a[1].answer }));
         const request: ChatRequest = {
             history: [...history, { user: question, bot: undefined }],
@@ -77,58 +104,61 @@ const Chat = () => {
                 suggestFollowupQuestions: useSuggestFollowupQuestions
             }
         };
-    
+
         const chatApiPromise = chatApi(request);
         const serverlessFunctionPromise = fetch(SERVERLESS_FUNCTION_URL, {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
+                "Content-Type": "application/json"
             },
-            body: JSON.stringify({ query: question }),
+            body: JSON.stringify({ query: question, history: history })
         });
-    
-        chatApiPromise.then(result => {
-            setAnswers([...answers, [question, result]]);
-            setIsLoading(false);
-            const endpoint = import.meta.env.VITE_COSMOSDB_ENDPOINT;
-            const key = import.meta.env.VITE_COSMOSDB_KEY;
 
-            if (!endpoint || !key) {
-                // Handle the case when the endpoint or key is missing
-                throw new Error('Endpoint or key is missing');
-            }
-            const client = new CosmosClient({ endpoint, key });
-            const databaseId = 'ToDoList';
-            const containerId = 'Items';
-            const database = client.database(databaseId);
-            const container = database.container(containerId);
-            const item = {
-                question,
-                result,
-                timestamp: new Date().toISOString(),
-                website: 'acc.cliniwiz.com'
-            };
+        chatApiPromise
+            .then(result => {
+                setAnswers([...answers, [question, result]]);
+                setIsLoadingChatApi(false);
+                const endpoint = import.meta.env.VITE_COSMOSDB_ENDPOINT;
+                const key = import.meta.env.VITE_COSMOSDB_KEY;
 
-        }).catch(e => {
-            setError(e);
-        });
-    
-        serverlessFunctionPromise.then(async response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            console.log(data); // This will print the response to the console.
-            setAzureData(data);
-        }).catch(error => {
-            console.error("Error calling Azure serverless function:", error);
-        }).finally(() => {
-            setIsLoading(false);
-        });
+                if (!endpoint || !key) {
+                    // Handle the case when the endpoint or key is missing
+                    throw new Error("Endpoint or key is missing");
+                }
+                const client = new CosmosClient({ endpoint, key });
+                const databaseId = "ToDoList";
+                const containerId = "Items";
+                const database = client.database(databaseId);
+                const container = database.container(containerId);
+                const item = {
+                    question,
+                    result,
+                    timestamp: new Date().toISOString(),
+                    website: "acc.cliniwiz.com"
+                };
+
+                container.items.create(item);
+            })
+            .catch(e => {
+                setError(e);
+                setIsLoadingChatApi(false);
+            });
+
+        serverlessFunctionPromise
+            .then(async response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                console.log(data); // This will print the response to the console.
+                setAzureData(data);
+                setIsLoadingAzureFunction(false);
+            })
+            .catch(error => {
+                console.error("Error calling Azure serverless function:", error);
+                setIsLoadingAzureFunction(false);
+            });
     };
-
-    
-
 
     const clearChat = () => {
         lastQuestionRef.current = "";
@@ -215,6 +245,7 @@ const Chat = () => {
                                 <div key={index}>
                                     <UserChatMessage message={answer[0]} />
                                     <div className={styles.chatMessageGpt}>
+                                        <h2>Answers from Guidelines</h2>
                                         <Answer
                                             key={index}
                                             answer={answer[1]}
@@ -224,40 +255,22 @@ const Chat = () => {
                                             onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
                                             onFollowupQuestionClicked={q => makeApiRequest(q)}
                                             showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
-                                            {...azureData && (
-        <div className={styles.azureData}>
-            <h3>{azureData.answer}</h3>
-            <ul>
-                {azureData.documents.map((doc, index) => (
-                    <li key={index}>
-                        <Link href={doc.metadata.source} target="_blank">
-                            {doc.metadata.page_title}
-                        </Link>
-                    </li>
-                ))}
-            </ul>
-        </div>
-    )}
-
                                         />
+                                        <FuncAnswer azureData={azureData} />
                                     </div>
-                                    {azureData && (
-    <div className={styles.azureData}>
-        <h3>{azureData.answer}</h3>
-        <ul>
-            {azureData.documents.map((doc, index) => (
-                <li key={index}>
-                    <Link href={doc.metadata.source} target="_blank">
-                        {doc.metadata.page_title}
-                    </Link>
-                </li>
-            ))}
-        </ul>
-    </div>
-)}
                                 </div>
                             ))}
-                            {isLoading && (
+
+                            {isLoadingChatApi && (
+                                <>
+                                    <UserChatMessage message={lastQuestionRef.current} />
+                                    <div className={styles.chatMessageGptMinWidth}>
+                                        <AnswerLoading />
+                                    </div>
+                                </>
+                            )}
+
+                            {isLoadingAzureFunction && (
                                 <>
                                     <UserChatMessage message={lastQuestionRef.current} />
                                     <div className={styles.chatMessageGptMinWidth}>
@@ -267,7 +280,6 @@ const Chat = () => {
                             )}
                             {error ? (
                                 <>
-
                                     <UserChatMessage message={lastQuestionRef.current} />
 
                                     <div className={styles.chatMessageGptMinWidth}>
@@ -346,7 +358,7 @@ const Chat = () => {
                         label="Suggest follow-up questions"
                         onChange={onUseSuggestFollowupQuestionsChange}
                     /> */}
-                     <Dropdown
+                    <Dropdown
                         className={styles.chatSettingsSeparator}
                         label="Retrieval mode"
                         options={[
