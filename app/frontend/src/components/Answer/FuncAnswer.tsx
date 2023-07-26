@@ -29,7 +29,7 @@ interface FuncAnswerProps {
 }
 
 export const FuncAnswer: React.FC<FuncAnswerProps> = ({ azureData }) => {
-    if (!azureData) return null; 
+    if (!azureData) return null;
 
     const shareFuncAnswer = async () => {
         if (navigator.share) {
@@ -87,25 +87,24 @@ export const FuncAnswer: React.FC<FuncAnswerProps> = ({ azureData }) => {
             </Stack.Item>
 
             <Stack.Item grow>
-    <div className={styles.answerText}>
-        <p><strong>Additional Authentic Information</strong></p>
-        <p>{azureData.answer}</p>
-        <p className={styles.citationLearnMore}>References:</p>
-        <ul>
-            {azureData.documents.map((doc, index) => (
-                <li key={index}>
-                    <Link href={doc.metadata.source} target="_blank">
-                        {doc.metadata.page_title}
-                    </Link>: <Link href={doc.metadata.source} target="_blank">
-                        {doc.metadata.source}
-                    </Link>
-                </li>
-            ))}
-        </ul>
-    </div>
-</Stack.Item>
-
-
+                <div className={styles.answerText}>
+                    <p>
+                        <strong>Additional Authentic Information</strong>
+                    </p>
+                    <p>{azureData.answer}</p>
+                    <p className={styles.citationLearnMore}>References:</p>
+                    <ul>
+                        {azureData.documents.map((doc, index) => (
+                            <li key={index}>
+                                {doc.metadata.page_title} : 
+                                <Link href={doc.metadata.source} target="_blank">
+                                    {doc.metadata.source}
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </Stack.Item>
         </Stack>
     );
 };

@@ -78,26 +78,6 @@ const Chat = () => {
             .then(result => {
                 setAnswers([...answers, [question, result]]);
                 setIsLoadingChatApi(false);
-                const endpoint = import.meta.env.VITE_COSMOSDB_ENDPOINT;
-                const key = import.meta.env.VITE_COSMOSDB_KEY;
-
-                if (!endpoint || !key) {
-                    // Handle the case when the endpoint or key is missing
-                    throw new Error("Endpoint or key is missing");
-                }
-                const client = new CosmosClient({ endpoint, key });
-                const databaseId = "ToDoList";
-                const containerId = "Items";
-                const database = client.database(databaseId);
-                const container = database.container(containerId);
-                const item = {
-                    question,
-                    result,
-                    timestamp: new Date().toISOString(),
-                    website: "acc.cliniwiz.com"
-                };
-
-                container.items.create(item);
             })
             .catch(e => {
                 setError(e);
@@ -105,19 +85,72 @@ const Chat = () => {
             });
 
         serverlessFunctionPromise
-            .then(async response => {
+            .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                const data = await response.json();
-                console.log(data); // This will print the response to the console.
-                setAzureData(data);
                 setIsLoadingAzureFunction(false);
             })
             .catch(error => {
                 console.error("Error calling Azure serverless function:", error);
                 setIsLoadingAzureFunction(false);
             });
+
+        try {
+            const [chatApiResult, serverlessFunctionResponse] = await Promise.all([chatApiPromise, serverlessFunctionPromise]);
+
+            if (!serverlessFunctionResponse.ok) {
+                throw new Error(`HTTP error! status: ${serverlessFunctionResponse.status}`);
+            }
+
+            const serverlessFunctionData = await serverlessFunctionResponse.json();
+setAzureData(serverlessFunctionData);
+
+history.push({ user: question, bot: `${chatApiResult.answer} ${serverlessFunctionData.answer}` });
+
+// Create a mock AskResponse object for each ChatTurn in history.
+const mockResponses: [string, AskResponse][] = history.map(turn => [turn.user, {
+    answer: turn.bot || "", // Set default value
+    thoughts: "", // Mock thoughts
+    data_points: [], // Mock data_points
+    // Add more properties as necessary.
+}]);
+
+
+setAnswers(mockResponses);
+
+setIsLoadingAzureFunction(false);
+setIsLoadingChatApi(false);
+
+            
+
+
+            const endpoint = import.meta.env.VITE_COSMOSDB_ENDPOINT;
+            const key = import.meta.env.VITE_COSMOSDB_KEY;
+
+            if (!endpoint || !key) {
+                // Handle the case when the endpoint or key is missing
+                throw new Error("Endpoint or key is missing");
+            }
+            const client = new CosmosClient({ endpoint, key });
+            const databaseId = "ToDoList";
+            const containerId = "Items";
+            const database = client.database(databaseId);
+            const container = database.container(containerId);
+            const item = {
+                question,
+                result: chatApiResult.answer,
+                resultFunc: serverlessFunctionData.answer,
+                timestamp: new Date().toISOString(),
+                website: "acc.cliniwiz.com"
+            };
+
+            container.items.create(item);
+        } catch (e) {
+            setError(e);
+            setIsLoadingChatApi(false);
+            setIsLoadingAzureFunction(false);
+        }
     };
 
     const clearChat = () => {
