@@ -55,37 +55,40 @@ const Chat = () => {
     const [answers, setAnswers] = useState<[user: string, response: AskResponse][]>([]);
     const [azureData, setAzureData] = useState<AzureData | null>(null);
 
+
     const makeApiRequest = async (question: string) => {
         lastQuestionRef.current = question;
-
         error && setError(undefined);
         setIsLoading(true);
         setActiveCitation(undefined);
         setActiveAnalysisPanelTab(undefined);
-        let result;
-
-        try {
-            const history: ChatTurn[] = answers.map(a => ({ user: a[0], bot: a[1].answer }));
-            const request: ChatRequest = {
-                history: [...history, { user: question, bot: undefined }],
-                approach: Approaches.ReadRetrieveRead,
-                overrides: {
-                    promptTemplate: promptTemplate.length === 0 ? undefined : promptTemplate,
-                    excludeCategory: excludeCategory.length === 0 ? undefined : excludeCategory,
-                    top: retrieveCount,
-                    retrievalMode: retrievalMode,
-                    semanticRanker: useSemanticRanker,
-                    semanticCaptions: useSemanticCaptions,
-                    suggestFollowupQuestions: useSuggestFollowupQuestions
-                }
-            };
-            result = await chatApi(request);
+    
+        const history: ChatTurn[] = answers.map(a => ({ user: a[0], bot: a[1].answer }));
+        const request: ChatRequest = {
+            history: [...history, { user: question, bot: undefined }],
+            approach: Approaches.ReadRetrieveRead,
+            overrides: {
+                promptTemplate: promptTemplate.length === 0 ? undefined : promptTemplate,
+                excludeCategory: excludeCategory.length === 0 ? undefined : excludeCategory,
+                top: retrieveCount,
+                retrievalMode: retrievalMode,
+                semanticRanker: useSemanticRanker,
+                semanticCaptions: useSemanticCaptions,
+                suggestFollowupQuestions: useSuggestFollowupQuestions
+            }
+        };
+    
+        const chatApiPromise = chatApi(request);
+        const serverlessFunctionPromise = fetch(SERVERLESS_FUNCTION_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ query: question }),
+        });
+    
+        chatApiPromise.then(result => {
             setAnswers([...answers, [question, result]]);
-            // Save result to Cosmos DB
-
-        } catch (e) {
-            setError(e);
-        } finally {
             setIsLoading(false);
             const endpoint = import.meta.env.VITE_COSMOSDB_ENDPOINT;
             const key = import.meta.env.VITE_COSMOSDB_KEY;
@@ -103,33 +106,28 @@ const Chat = () => {
                 question,
                 result,
                 timestamp: new Date().toISOString(),
-                website: 'cliniwiz.com'
+                website: 'acc.cliniwiz.com'
             };
 
-
-            await container.items.create(item);
-        }
-        try {
-            const response = await fetch(SERVERLESS_FUNCTION_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ query: question }),
-            });
-
+        }).catch(e => {
+            setError(e);
+        });
+    
+        serverlessFunctionPromise.then(async response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
             const data = await response.json();
-console.log(data); // This will print the response to the console.
-setAzureData(data);
+            console.log(data); // This will print the response to the console.
             setAzureData(data);
-        } catch (error) {
+        }).catch(error => {
             console.error("Error calling Azure serverless function:", error);
-        }
+        }).finally(() => {
+            setIsLoading(false);
+        });
     };
+
+    
 
 
     const clearChat = () => {
