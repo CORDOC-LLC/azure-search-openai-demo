@@ -98,8 +98,12 @@ export const Answer = ({
             </Stack.Item>
 
             <Stack.Item grow>
-                <div className={styles.answerText} dangerouslySetInnerHTML={{ __html: sanitizedAnswerHtml }}></div>
-            </Stack.Item>
+    <div className={styles.answerText}>
+        <p><strong>From guidelines</strong></p>
+        <div dangerouslySetInnerHTML={{ __html: sanitizedAnswerHtml }}></div>
+    </div>
+</Stack.Item>
+
 
             {!!parsedAnswer.citations.length && (
                 <Stack.Item>

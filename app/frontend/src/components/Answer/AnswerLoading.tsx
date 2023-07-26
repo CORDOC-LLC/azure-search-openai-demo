@@ -16,7 +16,7 @@ export const AnswerLoading = () => {
                 <AnswerIcon />
                 <Stack.Item grow>
                     <p className={styles.answerText}>
-                        Looking up answers
+                        Looking up answers (could take up to 30 seconds)
                         <span className={styles.loadingdots} />
                     </p>
                 </Stack.Item>

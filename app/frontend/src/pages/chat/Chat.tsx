@@ -5,7 +5,7 @@ import { BookOpenFilled } from "@fluentui/react-icons";
 import styles from "./Chat.module.css";
 
 import { chatApi, RetrievalMode, Approaches, AskResponse, ChatRequest, ChatTurn } from "../../api";
-import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
+import { Answer, AnswerError, AnswerLoading, FuncAnswer, AzureData } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
 import { UserChatMessage } from "../../components/UserChatMessage";
@@ -13,46 +13,6 @@ import { AnalysisPanel, AnalysisPanelTabs } from "../../components/AnalysisPanel
 import { SettingsButton } from "../../components/SettingsButton";
 import { ClearChatButton } from "../../components/ClearChatButton";
 import { CosmosClient } from "@azure/cosmos";
-
-interface Document {
-    page_content: string;
-    metadata: {
-        source: string;
-        page_title: string;
-    };
-}
-
-interface AzureData {
-    answer: string;
-    data_points: string[];
-    thoughts: string[];
-    documents: Document[];
-    // add other properties as needed
-}
-
-interface FuncAnswerProps {
-    azureData: AzureData | null;
-}
-
-const FuncAnswer: React.FC<FuncAnswerProps> = ({ azureData }) => {
-    if (!azureData) return null; // or some placeholder when azureData is not available
-
-    return (
-        <div className={styles.azureData}>
-            <h2>Additional Authentic Information</h2>
-            <h3>{azureData.answer}</h3>
-            <ul>
-                {azureData.documents.map((doc, index) => (
-                    <li key={index}>
-                        <Link href={doc.metadata.source} target="_blank">
-                            {doc.metadata.page_title}
-                        </Link>
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
-};
 
 const SERVERLESS_FUNCTION_URL = "http://localhost:7777/api/searchFunction";
 
@@ -245,7 +205,6 @@ const Chat = () => {
                                 <div key={index}>
                                     <UserChatMessage message={answer[0]} />
                                     <div className={styles.chatMessageGpt}>
-                                        <h2>Answers from Guidelines</h2>
                                         <Answer
                                             key={index}
                                             answer={answer[1]}
@@ -256,10 +215,10 @@ const Chat = () => {
                                             onFollowupQuestionClicked={q => makeApiRequest(q)}
                                             showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
                                         />
-                                        <FuncAnswer azureData={azureData} />
                                     </div>
                                 </div>
                             ))}
+                            <FuncAnswer azureData={azureData} />
 
                             {isLoadingChatApi && (
                                 <>
