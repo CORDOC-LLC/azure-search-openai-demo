@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef } from "react";
-import { Stack, IconButton } from "@fluentui/react";
+import { Stack, IconButton, Link } from "@fluentui/react";
 import DOMPurify from "dompurify";
 
 import styles from "./Answer.module.css";
@@ -11,6 +11,7 @@ import { AnswerIcon } from "./AnswerIcon";
 interface Props {
     answer: AskResponse;
     isSelected?: boolean;
+    azureData?: AzureData | null;
     onCitationClicked: (filePath: string) => void;
     onThoughtProcessClicked: () => void;
     onSupportingContentClicked: () => void;
@@ -18,9 +19,30 @@ interface Props {
     showFollowupQuestions?: boolean;
 }
 
+interface Document {
+    page_content: string;
+    metadata: {
+        source: string;
+        page_title: string;
+    };
+}
+
+export interface AzureData {
+    answer: string;
+    data_points: string[];
+    thoughts: string[];
+    documents: Document[];
+    // add other properties as needed
+}
+
+interface FuncAnswerProps {
+    azureData: AzureData | null;
+}
+
 export const Answer = ({
     answer,
     isSelected,
+    azureData,
     onCitationClicked,
     onThoughtProcessClicked,
     onSupportingContentClicked,
@@ -39,7 +61,7 @@ export const Answer = ({
         if (navigator.share) {
             try {
                 const title = "CliniWiz: AI-based medical search tool";
-                const plainTextMessage = `${sanitizedAnswerHtmlRef.current}`;
+                const plainTextMessage = `From guidelines: ${sanitizedAnswerHtmlRef.current} ~~~~~~~~~~~~~~~ From authentic sources: ${azureData?.answer}`;
 
                 await navigator.share({
                     title,
@@ -98,25 +120,57 @@ export const Answer = ({
             </Stack.Item>
 
             <Stack.Item grow>
-    <div className={styles.answerText}>
-        <p><strong>From guidelines</strong></p>
-        <div dangerouslySetInnerHTML={{ __html: sanitizedAnswerHtml }}></div>
-    </div>
-</Stack.Item>
+                <div className={styles.answerText}>
+                    <p>
+                        <strong>From guidelines</strong>
+                    </p>
+                    <div dangerouslySetInnerHTML={{ __html: sanitizedAnswerHtml }}></div>
+                </div>
+            </Stack.Item>
 
+            {azureData && (
+                <Stack.Item grow>
+                    <div className={styles.answerText}>
+                        <p>
+                            <strong>Additional Authentic Information</strong>
+                        </p>
+                        <p>{azureData.answer}</p>
+                    </div>
+                </Stack.Item>
+            )}
 
-            {!!parsedAnswer.citations.length && (
+            {(!!parsedAnswer.citations.length || (azureData && azureData.documents.length > 0)) && (
                 <Stack.Item>
                     <Stack horizontal wrap tokens={{ childrenGap: 5 }}>
                         <span className={styles.citationLearnMore}>Citations:</span>
-                        {parsedAnswer.citations.map((x, i) => {
-                            const path = getCitationFilePath(x);
-                            return (
-                                <a key={i} className={styles.citation} title={x} onClick={() => onCitationClicked(path)}>
-                                    {`${++i}. ${x}`}
-                                </a>
-                            );
-                        })}
+                        <ul>
+                            {parsedAnswer.citations.map((x, i) => {
+                                const path = getCitationFilePath(x);
+                                return (
+                                    <li key={i}>
+                                        <a className={styles.citation} title={x} onClick={() => onCitationClicked(path)}>
+                                            {`${++i}. ${x}`}
+                                        </a>
+                                    </li>
+                                );
+                            })}
+                            {azureData &&
+                                azureData.documents.map((doc, index) => (
+                                    <li key={index}>
+                                        <a
+                                            className={styles.citation}
+                                            title={doc.metadata.page_title}
+                                            onClick={e => {
+                                                e.preventDefault();
+                                                window.open(doc.metadata.source, "_blank");
+                                            }}
+                                            href={doc.metadata.source}
+                                        >
+                                            {`${doc.metadata.page_title} : ${doc.metadata.source}`}
+                                        </a>
+                                    </li>
+                                ))}
+                        </ul>
                     </Stack>
                 </Stack.Item>
             )}

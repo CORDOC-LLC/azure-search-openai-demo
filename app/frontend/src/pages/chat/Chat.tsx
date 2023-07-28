@@ -5,7 +5,7 @@ import { BookOpenFilled } from "@fluentui/react-icons";
 import styles from "./Chat.module.css";
 
 import { chatApi, RetrievalMode, Approaches, AskResponse, ChatRequest, ChatTurn } from "../../api";
-import { Answer, AnswerError, AnswerLoading, FuncAnswer, AzureData } from "../../components/Answer";
+import { Answer, AnswerError, AnswerLoading, AzureData } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
 import { UserChatMessage } from "../../components/UserChatMessage";
@@ -19,7 +19,7 @@ const SERVERLESS_FUNCTION_URL = "http://localhost:7777/api/searchFunction";
 const Chat = () => {
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
     const [promptTemplate, setPromptTemplate] = useState<string>("");
-    const [retrieveCount, setRetrieveCount] = useState<number>(3);
+    const [retrieveCount, setRetrieveCount] = useState<number>(10);
     const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>(RetrievalMode.Hybrid);
     const [useSemanticRanker, setUseSemanticRanker] = useState<boolean>(true);
     const [useSemanticCaptions, setUseSemanticCaptions] = useState<boolean>(false);
@@ -41,6 +41,7 @@ const Chat = () => {
     const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
     const [answers, setAnswers] = useState<[user: string, response: AskResponse][]>([]);
     const [azureData, setAzureData] = useState<AzureData | null>(null);
+    const [azureAnswers, setAzureAnswers] = useState<[user: string, azureData: AzureData | null][]>([]);
 
     const makeApiRequest = async (question: string) => {
         lastQuestionRef.current = question;
@@ -50,7 +51,11 @@ const Chat = () => {
         setActiveCitation(undefined);
         setActiveAnalysisPanelTab(undefined);
 
-        const history: ChatTurn[] = answers.map(a => ({ user: a[0], bot: a[1].answer }));
+        const history: ChatTurn[] = answers.map((a, index) => ({
+            user: a[0],
+            bot: azureAnswers.length > index && azureAnswers[index][1]?.answer ? `${azureAnswers[index][1]?.answer} ${a[1].answer}` : a[1].answer
+        }));
+
         const request: ChatRequest = {
             history: [...history, { user: question, bot: undefined }],
             approach: Approaches.ReadRetrieveRead,
@@ -64,18 +69,21 @@ const Chat = () => {
                 suggestFollowupQuestions: useSuggestFollowupQuestions
             }
         };
+        console.log(history);
 
         const chatApiPromise = chatApi(request);
+        const historyString: string = JSON.stringify(history);
         const serverlessFunctionPromise = fetch(SERVERLESS_FUNCTION_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ query: question, history: history })
+            body: JSON.stringify({ query: question, history: historyString })
         });
 
         chatApiPromise
             .then(result => {
+                history.push({ user: question, bot: result.answer });
                 setAnswers([...answers, [question, result]]);
                 setIsLoadingChatApi(false);
             })
@@ -89,6 +97,11 @@ const Chat = () => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                return response.json();
+            })
+            .then(data => {
+                history.push({ user: question, bot: data.answer });
+                setAzureAnswers([...azureAnswers, [question, data]]);
                 setIsLoadingAzureFunction(false);
             })
             .catch(error => {
@@ -97,33 +110,37 @@ const Chat = () => {
             });
 
         try {
+            // Await both promises.
             const [chatApiResult, serverlessFunctionResponse] = await Promise.all([chatApiPromise, serverlessFunctionPromise]);
 
             if (!serverlessFunctionResponse.ok) {
                 throw new Error(`HTTP error! status: ${serverlessFunctionResponse.status}`);
             }
 
+            // Extract the JSON data from the response
             const serverlessFunctionData = await serverlessFunctionResponse.json();
-setAzureData(serverlessFunctionData);
 
-history.push({ user: question, bot: `${chatApiResult.answer} ${serverlessFunctionData.answer}` });
+            // Concatenate answers from both chatApi and serverless function.
+            const combinedAnswer = `${chatApiResult.answer} ${serverlessFunctionData.answer}`;
 
-// Create a mock AskResponse object for each ChatTurn in history.
-const mockResponses: [string, AskResponse][] = history.map(turn => [turn.user, {
-    answer: turn.bot || "", // Set default value
-    thoughts: "", // Mock thoughts
-    data_points: [], // Mock data_points
-    // Add more properties as necessary.
-}]);
+            // Add the combined answer to the history.
+            history.push({ user: question, bot: combinedAnswer });
 
+            // Create a mock AskResponse object for each ChatTurn in history.
+            const mockResponses: [string, AskResponse][] = history.map(turn => [
+                turn.user,
+                {
+                    answer: turn.bot || "", // Set default value
+                    thoughts: "", // Mock thoughts
+                    data_points: [] // Mock data_points
+                    // Add more properties as necessary.
+                }
+            ]);
 
-setAnswers(mockResponses);
+            setAnswers(mockResponses);
 
-setIsLoadingAzureFunction(false);
-setIsLoadingChatApi(false);
-
-            
-
+            setIsLoadingAzureFunction(false);
+            setIsLoadingChatApi(false);
 
             const endpoint = import.meta.env.VITE_COSMOSDB_ENDPOINT;
             const key = import.meta.env.VITE_COSMOSDB_KEY;
@@ -241,6 +258,7 @@ setIsLoadingChatApi(false);
                                         <Answer
                                             key={index}
                                             answer={answer[1]}
+                                            azureData={azureAnswers.length > index ? azureAnswers[index][1] : null}
                                             isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
                                             onCitationClicked={c => onShowCitation(c, index)}
                                             onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
@@ -251,16 +269,6 @@ setIsLoadingChatApi(false);
                                     </div>
                                 </div>
                             ))}
-                            <FuncAnswer azureData={azureData} />
-
-                            {isLoadingChatApi && (
-                                <>
-                                    <UserChatMessage message={lastQuestionRef.current} />
-                                    <div className={styles.chatMessageGptMinWidth}>
-                                        <AnswerLoading />
-                                    </div>
-                                </>
-                            )}
 
                             {isLoadingAzureFunction && (
                                 <>
@@ -270,15 +278,6 @@ setIsLoadingChatApi(false);
                                     </div>
                                 </>
                             )}
-                            {error ? (
-                                <>
-                                    <UserChatMessage message={lastQuestionRef.current} />
-
-                                    <div className={styles.chatMessageGptMinWidth}>
-                                        <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
-                                    </div>
-                                </>
-                            ) : null}
                             <div ref={chatMessageStreamEnd} />
                         </div>
                     )}
