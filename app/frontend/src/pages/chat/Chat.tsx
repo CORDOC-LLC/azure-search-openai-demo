@@ -14,7 +14,8 @@ import { SettingsButton } from "../../components/SettingsButton";
 import { ClearChatButton } from "../../components/ClearChatButton";
 import { CosmosClient } from "@azure/cosmos";
 
-const SERVERLESS_FUNCTION_URL = "http://localhost:7777/api/searchFunction";
+const API_KEY = import.meta.env.VITE_API_KEY;
+const SERVERLESS_FUNCTION_URL = `https://searchfuncpremium.azurewebsites.net/api/searchFunction?code=${API_KEY}`;
 
 const Chat = () => {
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
@@ -69,8 +70,6 @@ const Chat = () => {
                 suggestFollowupQuestions: useSuggestFollowupQuestions
             }
         };
-        console.log(history);
-
         const chatApiPromise = chatApi(request);
         const historyString: string = JSON.stringify(history);
         const serverlessFunctionPromise = fetch(SERVERLESS_FUNCTION_URL, {
@@ -176,6 +175,7 @@ const Chat = () => {
         setActiveCitation(undefined);
         setActiveAnalysisPanelTab(undefined);
         setAnswers([]);
+        setAzureAnswers([]);
     };
 
     useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), [isLoading]);
@@ -323,7 +323,7 @@ const Chat = () => {
 
                     <SpinButton
                         className={styles.chatSettingsSeparator}
-                        label="Retrieve this many documents from search:"
+                        label="Number of documents to be retrieved:"
                         min={1}
                         max={50}
                         defaultValue={retrieveCount.toString()}
