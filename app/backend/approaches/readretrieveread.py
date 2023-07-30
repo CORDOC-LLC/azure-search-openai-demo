@@ -1,7 +1,7 @@
 import openai
 from approaches.approach import Approach
 from azure.search.documents import SearchClient
-from azure.search.documents.models import QueryType
+from azure.search.documents.models import QueryType, Vector
 from langchain.llms.openai import AzureOpenAI
 from langchain.callbacks.manager import CallbackManager, Callbacks
 from langchain.chains import LLMChain
@@ -24,7 +24,7 @@ class ReadRetrieveReadApproach(Approach):
     """
 
     template_prefix = \
-"You are an intelligent assistant helping Contoso Inc employees with their healthcare plan questions and employee handbook questions. " \
+"You are an intelligent assistant helping cardiologists with their questions regarding patient management guidelines and expert recommendations. " \
 "Answer the question using only the data provided in the information sources below. " \
 "For tabular information return it as an html table. Do not return markdown format. " \
 "Each source has a name followed by colon and the actual data, quote the source name for each piece of data you use in the response. " \
@@ -42,7 +42,7 @@ Question: {input}
 
 Thought: {agent_scratchpad}"""    
 
-    CognitiveSearchToolDescription = "useful for searching the Microsoft employee benefits information such as healthcare plans, retirement plans, etc."
+    CognitiveSearchToolDescription = "useful for searching the medical guidelines from various medical societies, etc."
 
     def __init__(self, search_client: SearchClient, openai_deployment: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
         self.search_client = search_client
@@ -51,26 +51,42 @@ Thought: {agent_scratchpad}"""
         self.sourcepage_field = sourcepage_field
         self.content_field = content_field
 
+<<<<<<< HEAD
     def retrieve(self, query_text: str, overrides: dict[str, Any]) -> Any:
         has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
         has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
         use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
+=======
+    def retrieve(self, query_text: str, overrides: dict) -> any:
+        use_semantic_captions = True if overrides.get("semantic_captions") else False
+>>>>>>> stream
         top = overrides.get("top") or 3
         exclude_category = overrides.get("exclude_category") or None
         filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
 
         # If retrieval mode includes vectors, compute an embedding for the query
+<<<<<<< HEAD
         if has_vector:
+=======
+        if overrides.get("retrieval_mode") in ["vectors", "hybrid", None]:
+>>>>>>> stream
             query_vector = openai.Embedding.create(engine=self.embedding_deployment, input=query_text)["data"][0]["embedding"]
         else:
             query_vector = None
 
         # Only keep the text query if the retrieval mode uses text, otherwise drop it
+<<<<<<< HEAD
         if not has_text:
             query_text = None
 
         # Use semantic ranker if requested and if retrieval mode is text or hybrid (vectors + text)
         if overrides.get("semantic_ranker") and has_text:
+=======
+        if overrides.get("retrieval_mode") == "vectors":
+            query_text = None
+
+        if overrides.get("semantic_ranker"):
+>>>>>>> stream
             r = self.search_client.search(query_text,
                                           filter=filter, 
                                           query_type=QueryType.SEMANTIC, 
@@ -79,6 +95,7 @@ Thought: {agent_scratchpad}"""
                                           semantic_configuration_name="default", 
                                           top = top,
                                           query_caption="extractive|highlight-false" if use_semantic_captions else None,
+<<<<<<< HEAD
                                           vector=query_vector, 
                                           top_k=50 if query_vector else None, 
                                           vector_fields="embedding" if query_vector else None)
@@ -89,6 +106,11 @@ Thought: {agent_scratchpad}"""
                                           vector=query_vector, 
                                           top_k=50 if query_vector else None, 
                                           vector_fields="embedding" if query_vector else None)
+=======
+                                          vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+        else:
+            r = self.search_client.search(query_text, filter=filter, top=top, vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+>>>>>>> stream
         if use_semantic_captions:
             self.results = [doc[self.sourcepage_field] + ":" + nonewlines(" -.- ".join([c.text for c in doc['@search.captions']])) for doc in r]
         else:

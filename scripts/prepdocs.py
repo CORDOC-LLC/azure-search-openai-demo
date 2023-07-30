@@ -6,6 +6,7 @@ import io
 import os
 import re
 import time
+<<<<<<< HEAD
 
 import openai
 from azure.ai.formrecognizer import DocumentAnalysisClient
@@ -30,11 +31,130 @@ from azure.search.documents.indexes.models import (
 from azure.storage.blob import BlobServiceClient
 from pypdf import PdfReader, PdfWriter
 from tenacity import retry, stop_after_attempt, wait_random_exponential
+=======
+import csv
+import openai
+
+from pypdf import PdfReader, PdfWriter
+from azure.identity import AzureDeveloperCliCredential
+from azure.core.credentials import AzureKeyCredential
+from azure.storage.blob import BlobServiceClient
+from azure.search.documents.indexes import SearchIndexClient
+from azure.search.documents.indexes.models import *
+from azure.search.documents import SearchClient
+from azure.ai.formrecognizer import DocumentAnalysisClient
+import logging
+
+logging.basicConfig(filename='app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+>>>>>>> stream
 
 MAX_SECTION_LENGTH = 1000
 SENTENCE_SEARCH_LIMIT = 100
 SECTION_OVERLAP = 100
 
+<<<<<<< HEAD
+=======
+parser = argparse.ArgumentParser(
+    description="Prepare documents by extracting content from PDFs, splitting content into sections, uploading to blob storage, and indexing in a search index.",
+    epilog="Example: prepdocs.py '..\data\*' --storageaccount myaccount --container mycontainer --searchservice mysearch --index myindex -v"
+    )
+parser.add_argument("files", help="Files to be processed")
+parser.add_argument("--category", help="Value for the category field in the search index for all sections indexed in this run")
+parser.add_argument("--skipblobs", action="store_true", help="Skip uploading individual pages to Azure Blob Storage")
+parser.add_argument("--storageaccount", help="Azure Blob Storage account name")
+parser.add_argument("--container", help="Azure Blob Storage container name")
+parser.add_argument("--storagekey", required=False, help="Optional. Use this Azure Blob Storage account key instead of the current user identity to login (use az login to set current user for Azure)")
+parser.add_argument("--tenantid", required=False, help="Optional. Use this to define the Azure directory where to authenticate)")
+parser.add_argument("--searchservice", help="Name of the Azure Cognitive Search service where content should be indexed (must exist already)")
+parser.add_argument("--index", help="Name of the Azure Cognitive Search index where content should be indexed (will be created if it doesn't exist)")
+parser.add_argument("--searchkey", required=False, help="Optional. Use this Azure Cognitive Search account key instead of the current user identity to login (use az login to set current user for Azure)")
+parser.add_argument("--openaiservice", help="Name of the Azure OpenAI service used to compute embeddings")
+parser.add_argument("--openaideployment", help="Name of the Azure OpenAI model deployment for an embedding model ('text-embedding-ada-002' recommended)")
+parser.add_argument("--openaikey", required=False, help="Optional. Use this Azure OpenAI account key instead of the current user identity to login (use az login to set current user for Azure)")
+parser.add_argument("--remove", action="store_true", help="Remove references to this document from blob storage and the search index")
+parser.add_argument("--removeall", action="store_true", help="Remove all blobs from blob storage and documents from the search index")
+parser.add_argument("--localpdfparser", action="store_true", help="Use PyPdf local PDF parser (supports only digital PDFs) instead of Azure Form Recognizer service to extract text, tables and layout from the documents")
+parser.add_argument("--formrecognizerservice", required=False, help="Optional. Name of the Azure Form Recognizer service which will be used to extract text, tables and layout from the documents (must exist already)")
+parser.add_argument("--formrecognizerkey", required=False, help="Optional. Use this Azure Form Recognizer account key instead of the current user identity to login (use az login to set current user for Azure)")
+parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+args = parser.parse_args()
+
+# Use the current user identity to connect to Azure services unless a key is explicitly set for any of them
+azd_credential = AzureDeveloperCliCredential() if args.tenantid == None else AzureDeveloperCliCredential(tenant_id=args.tenantid, process_timeout=60)
+default_creds = azd_credential if args.searchkey == None or args.storagekey == None else None
+search_creds = default_creds if args.searchkey == None else AzureKeyCredential(args.searchkey)
+if not args.skipblobs:
+    storage_creds = default_creds if args.storagekey == None else args.storagekey
+if not args.localpdfparser:
+    # check if Azure Form Recognizer credentials are provided
+    if args.formrecognizerservice == None:
+        print("Error: Azure Form Recognizer service is not provided. Please provide formrecognizerservice or use --localpdfparser for local pypdf parser.")
+        exit(1)
+    formrecognizer_creds = default_creds if args.formrecognizerkey == None else AzureKeyCredential(args.formrecognizerkey)
+
+if args.openaikey == None:
+    openai.api_key = azd_credential.get_token("https://cognitiveservices.azure.com/.default").token
+    openai.api_type = "azure_ad"
+else:
+    openai.api_type = "azure"
+    openai.api_key = args.openaikey
+openai.api_base = f"https://{args.openaiservice}.openai.azure.com"
+openai.api_version = "2022-12-01"
+
+""" def get_link_from_csv(filename):
+    # Remove './data/' prefix from filename
+    filename = filename.replace('./data/', '')
+
+    # Read the CSV file and retrieve the link corresponding to the filename
+    with open('colabtrial.csv', 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if row[0] == filename:
+                if len(row) > 1:
+                    return row[1]  # Return the link value as a plain string
+                else:
+                    return ""  # Return an empty string if no link is found
+    return ""  # Return an empty string if the link is not found """
+
+
+import logging
+
+def is_azure_compatible(citation):
+    # Check size of the citation
+    if len(citation.encode('utf-8')) > 8000:
+        return (False, "Metadata is larger than 8KB")
+    
+    # Check for control characters
+    control_chars = dict.fromkeys(range(32)).keys()
+    if any(char in citation for char in control_chars):
+        return (False, "Metadata contains control characters")
+
+    # Check for non-ASCII characters
+    if not citation.isascii():
+        return (False, "Metadata contains non-ASCII characters")
+
+    return (True, "")
+
+def get_metadata_from_csv(filename):
+    filename = os.path.splitext(filename)[0]  # Strip the file extension
+    filename = filename.replace('./data/', '')
+    with open('FinalACCLinksALL.csv', 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            current_filename = os.path.splitext(row[0].strip('"'))[0]  # Strip the file extension from the CSV filename
+            if current_filename == filename.strip('"'):
+                citation = row[1].strip('"')
+                date = row[2].strip('"')
+                link = row[3].strip('"')
+                document_type = row[4].strip('"')
+
+                # Replace \u2013 with dash
+                citation = citation.replace('\u2013', '-')
+
+                return citation, date, link, document_type
+    return None, None, None, None
+
+>>>>>>> stream
 def blob_name_from_file_page(filename, page = 0):
     if os.path.splitext(filename)[1].lower() == ".pdf":
         return os.path.splitext(os.path.basename(filename))[0] + f"-{page}" + ".pdf"
@@ -42,28 +162,52 @@ def blob_name_from_file_page(filename, page = 0):
         return os.path.basename(filename)
 
 def upload_blobs(filename):
-    blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
-    blob_container = blob_service.get_container_client(args.container)
-    if not blob_container.exists():
-        blob_container.create_container()
+    try:
+        citation, date, link, document_type = get_metadata_from_csv(filename)
 
-    # if file is PDF split into pages and upload each page as a separate blob
-    if os.path.splitext(filename)[1].lower() == ".pdf":
-        reader = PdfReader(filename)
-        pages = reader.pages
-        for i in range(len(pages)):
-            blob_name = blob_name_from_file_page(filename, i)
-            if args.verbose: print(f"\tUploading blob for page {i} -> {blob_name}")
-            f = io.BytesIO()
-            writer = PdfWriter()
-            writer.add_page(pages[i])
-            writer.write(f)
-            f.seek(0)
-            blob_container.upload_blob(blob_name, f, overwrite=True)
-    else:
-        blob_name = blob_name_from_file_page(filename)
-        with open(filename,"rb") as data:
-            blob_container.upload_blob(blob_name, data, overwrite=True)
+        print("Citation:", citation)
+        print("Date:", date)
+        print("Link:", link)
+        print("Document Type:", document_type)
+
+        if not citation or not date or not link or not document_type:
+            logging.warning(f"Metadata not found or inappropriate format for file {filename}")
+            save_invalid_metadata_filename(filename)
+            metadata = None
+        else:
+            if not is_azure_compatible(citation):
+                logging.warning(f"Citation has characters not permitted by Azure for file {filename}")
+                save_invalid_metadata_filename(filename)
+                metadata = None
+            else:
+                citation = citation.replace('\u2013', '-')
+                metadata = {'citation': citation, 'date': date, 'link': link, 'document_type': document_type}
+
+        # Initialize Azure blob service
+        blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
+        blob_container = blob_service.get_container_client(args.container)
+        if not blob_container.exists():
+            blob_container.create_container()
+
+        if os.path.splitext(filename)[1].lower() == ".pdf":
+            reader = PdfReader(filename)
+            pages = reader.pages
+            for i in range(len(pages)):
+                blob_name = blob_name_from_file_page(filename, i)
+                if metadata:
+                    blob_container.upload_blob(blob_name, pages[i], overwrite=True, metadata=metadata)
+                else:
+                    blob_container.upload_blob(blob_name, pages[i], overwrite=True)
+        else:
+            blob_name = blob_name_from_file_page(filename)
+            with open(filename, "rb") as data:
+                if metadata:
+                    blob_container.upload_blob(blob_name, data, overwrite=True, metadata=metadata)
+                else:
+                    blob_container.upload_blob(blob_name, data, overwrite=True)
+    except Exception as e:
+        logging.error(f"Error in uploading blob for file {filename}. Exception: {e}")
+
 
 def remove_blobs(filename):
     if args.verbose: print(f"Removing blobs for '{filename or '<all>'}'")
@@ -202,6 +346,7 @@ def split_text(page_map):
     if start + SECTION_OVERLAP < end:
         yield (all_text[start:end], find_page(start))
 
+<<<<<<< HEAD
 def filename_to_id(filename):
     filename_ascii = re.sub("[^0-9a-zA-Z_-]", "_", filename)
     filename_hash = base64.b16encode(filename.encode('utf-8')).decode('ascii')
@@ -213,6 +358,14 @@ def create_sections(filename, page_map, use_vectors):
         section = {
             "id": f"{file_id}-page-{i}",
             "content": content,
+=======
+def create_sections(filename, page_map):
+    for i, (section, pagenum) in enumerate(split_text(page_map)):
+        yield {
+            "id": re.sub("[^0-9a-zA-Z_-]","_",f"{filename}-{i}"),
+            "content": section,
+            "embedding": openai.Embedding.create(engine=args.openaideployment, input=section)["data"][0]["embedding"],
+>>>>>>> stream
             "category": args.category,
             "sourcepage": blob_name_from_file_page(filename, pagenum),
             "sourcefile": filename
@@ -240,7 +393,11 @@ def create_search_index():
                 SearchableField(name="content", type="Edm.String", analyzer_name="en.microsoft"),
                 SearchField(name="embedding", type=SearchFieldDataType.Collection(SearchFieldDataType.Single), 
                             hidden=False, searchable=True, filterable=False, sortable=False, facetable=False,
+<<<<<<< HEAD
                             vector_search_dimensions=1536, vector_search_configuration="default"),
+=======
+                            dimensions=1536, vector_search_configuration="default"),
+>>>>>>> stream
                 SimpleField(name="category", type="Edm.String", filterable=True, facetable=True),
                 SimpleField(name="sourcepage", type="Edm.String", filterable=True, facetable=True),
                 SimpleField(name="sourcefile", type="Edm.String", filterable=True, facetable=True)

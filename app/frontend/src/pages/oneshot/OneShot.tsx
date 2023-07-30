@@ -139,17 +139,17 @@ export function Component(): JSX.Element {
         <div className={styles.oneshotContainer}>
             <div className={styles.oneshotTopSection}>
                 <SettingsButton className={styles.settingsButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />
-                <h1 className={styles.oneshotTitle}>Ask your data</h1>
+                <h3 className={styles.oneshotTitle}>AI Powered Medical Guidelines Search</h3>
                 <div className={styles.oneshotQuestionInput}>
                     <QuestionInput
-                        placeholder="Example: Does my plan cover annual eye exams?"
+                        placeholder="Example: How to prevent trastuzumab-induced cardiotoxicity?"
                         disabled={isLoading}
                         onSend={question => makeApiRequest(question)}
                     />
                 </div>
             </div>
             <div className={styles.oneshotBottomSection}>
-                {isLoading && <Spinner label="Generating answer" />}
+                {isLoading && <Spinner label="Looking up answer" />}
                 {!lastQuestionRef.current && <ExampleList onExampleClicked={onExampleClicked} />}
                 {!isLoading && answer && !error && (
                     <div className={styles.oneshotAnswerContainer}>
@@ -229,7 +229,7 @@ export function Component(): JSX.Element {
 
                 <SpinButton
                     className={styles.oneshotSettingsSeparator}
-                    label="Retrieve this many documents from search:"
+                    label="Retrieve these many documents from search:"
                     min={1}
                     max={50}
                     defaultValue={retrieveCount.toString()}
@@ -253,9 +253,15 @@ export function Component(): JSX.Element {
                     className={styles.oneshotSettingsSeparator}
                     label="Retrieval mode"
                     options={[
+<<<<<<< HEAD
                         { key: "hybrid", text: "Vectors + Text (Hybrid)", selected: retrievalMode == RetrievalMode.Hybrid, data: RetrievalMode.Hybrid },
                         { key: "vectors", text: "Vectors", selected: retrievalMode == RetrievalMode.Vectors, data: RetrievalMode.Vectors },
                         { key: "text", text: "Text", selected: retrievalMode == RetrievalMode.Text, data: RetrievalMode.Text }
+=======
+                        { key: "hybrid", text: "Vectors + Text (Hybrid)", selected: true, data: RetrievalMode.Hybrid },
+                        { key: "vectors", text: "Vectors", data: RetrievalMode.Vectors },
+                        { key: "text", text: "Text", data: RetrievalMode.Text }
+>>>>>>> stream
                     ]}
                     required
                     onChange={onRetrievalModeChange}

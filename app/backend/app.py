@@ -21,12 +21,22 @@ AZURE_SEARCH_INDEX = os.environ.get("AZURE_SEARCH_INDEX") or "gptkbindex"
 AZURE_OPENAI_SERVICE = os.environ.get("AZURE_OPENAI_SERVICE") or "myopenai"
 AZURE_OPENAI_GPT_DEPLOYMENT = os.environ.get("AZURE_OPENAI_GPT_DEPLOYMENT") or "davinci"
 AZURE_OPENAI_CHATGPT_DEPLOYMENT = os.environ.get("AZURE_OPENAI_CHATGPT_DEPLOYMENT") or "chat"
+<<<<<<< HEAD
 AZURE_OPENAI_CHATGPT_MODEL = os.environ.get("AZURE_OPENAI_CHATGPT_MODEL") or "gpt-35-turbo"
+=======
+>>>>>>> stream
 AZURE_OPENAI_EMB_DEPLOYMENT = os.environ.get("AZURE_OPENAI_EMB_DEPLOYMENT") or "embedding"
 
 KB_FIELDS_CONTENT = os.environ.get("KB_FIELDS_CONTENT") or "content"
 KB_FIELDS_CATEGORY = os.environ.get("KB_FIELDS_CATEGORY") or "category"
 KB_FIELDS_SOURCEPAGE = os.environ.get("KB_FIELDS_SOURCEPAGE") or "sourcepage"
+
+
+COSMODB_ENDPOINT = os.environ.get("COSMOSDB_ENDPOINT");
+COSMODB_KEY = os.environ.get("COSMOSDB_KEY");
+COSMODB_databaseId = os.environ.get("COSMOSDB_DATABASE");
+COSMODB_containerId = os.environ.get("COSMOSDB_CONTAINER");
+
 
 # Use the current user identity to authenticate with Azure OpenAI, Cognitive Search and Blob Storage (no secrets needed, 
 # just use 'az login' locally, and managed identity when deployed on Azure). If you need to use keys, use separate AzureKeyCredential instances with the 
@@ -57,15 +67,24 @@ blob_container = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
 # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
 # or some derivative, here we include several for exploration purposes
 ask_approaches = {
+<<<<<<< HEAD
     "rtr": RetrieveThenReadApproach(search_client, AZURE_OPENAI_CHATGPT_DEPLOYMENT, AZURE_OPENAI_CHATGPT_MODEL, AZURE_OPENAI_EMB_DEPLOYMENT, KB_FIELDS_SOURCEPAGE, KB_FIELDS_CONTENT),
+=======
+    "rtr": RetrieveThenReadApproach(search_client, AZURE_OPENAI_GPT_DEPLOYMENT, AZURE_OPENAI_EMB_DEPLOYMENT, KB_FIELDS_SOURCEPAGE, KB_FIELDS_CONTENT),
+>>>>>>> stream
     "rrr": ReadRetrieveReadApproach(search_client, AZURE_OPENAI_GPT_DEPLOYMENT, AZURE_OPENAI_EMB_DEPLOYMENT, KB_FIELDS_SOURCEPAGE, KB_FIELDS_CONTENT),
     "rda": ReadDecomposeAsk(search_client, AZURE_OPENAI_GPT_DEPLOYMENT, AZURE_OPENAI_EMB_DEPLOYMENT, KB_FIELDS_SOURCEPAGE, KB_FIELDS_CONTENT)
 }
 
 chat_approaches = {
     "rrr": ChatReadRetrieveReadApproach(search_client, 
+<<<<<<< HEAD
                                         AZURE_OPENAI_CHATGPT_DEPLOYMENT,
                                         AZURE_OPENAI_CHATGPT_MODEL, 
+=======
+                                        AZURE_OPENAI_CHATGPT_DEPLOYMENT, 
+                                        AZURE_OPENAI_GPT_DEPLOYMENT, 
+>>>>>>> stream
                                         AZURE_OPENAI_EMB_DEPLOYMENT,
                                         KB_FIELDS_SOURCEPAGE, 
                                         KB_FIELDS_CONTENT)
@@ -84,6 +103,7 @@ def static_file(path):
 @app.route("/content/<path>")
 def content_file(path):
     blob = blob_container.get_blob_client(path).download_blob()
+<<<<<<< HEAD
     if not blob.properties or not blob.properties.has_key("content_settings"):
         abort(404)
     mime_type = blob.properties["content_settings"]["content_type"]
@@ -93,6 +113,15 @@ def content_file(path):
     blob.readinto(blob_file)
     blob_file.seek(0)
     return send_file(blob_file, mimetype=mime_type, as_attachment=False, download_name=path)
+=======
+    blob = blob_client.download_blob()
+    blob_properties = blob_client.get_blob_properties()
+    metadata = blob_properties.metadata
+    mime_type = blob.properties["content_settings"]["content_type"]
+    if mime_type == "application/octet-stream":
+        mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
+    return blob.readall(), metadata, 200, {"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"}
+>>>>>>> stream
     
 @app.route("/ask", methods=["POST"])
 def ask():

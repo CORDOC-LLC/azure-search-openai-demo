@@ -2,7 +2,7 @@ import openai
 
 from approaches.approach import Approach
 from azure.search.documents import SearchClient
-from azure.search.documents.models import QueryType
+from azure.search.documents.models import QueryType, Vector
 from text import nonewlines
 from typing import Any
 
@@ -15,14 +15,20 @@ class RetrieveThenReadApproach(Approach):
     (answer) with that prompt.
     """
 
+<<<<<<< HEAD
     system_chat_template = \
 "You are an intelligent assistant helping Contoso Inc employees with their healthcare plan questions and employee handbook questions. " + \
+=======
+    template = \
+"You are an intelligent assistant helping cardiologists with their questions regarding patient management guidelines and expert recommendations. " + \
+>>>>>>> stream
 "Use 'you' to refer to the individual asking the questions even if they ask with 'I'. " + \
 "Answer the following question using only the data provided in the sources below. " + \
 "For tabular information return it as an html table. Do not return markdown format. "  + \
 "Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response. " + \
 "If you cannot answer using the sources below, say you don't know. Use below example to answer"
 
+<<<<<<< HEAD
     #shots/sample conversation
     question = """
 'What is the deductible for the employee plan for a visit to Overlake in Bellevue?' 
@@ -32,13 +38,40 @@ info1.txt: deductibles depend on whether you are in-network or out-of-network. I
 info2.pdf: Overlake is in-network for the employee plan.
 info3.pdf: Overlake is the name of the area that includes a park and ride near Bellevue.
 info4.pdf: In-network institutions include Overlake, Swedish and others in the region
+=======
+###
+Question: 'What are the medicines recommended for treatment of elevated blood cholesterol levels?'
+
+Sources:
+info1.txt: Statins are commonly used for treatment of elevated blood cholesterol levels.
+info2.pdf: If the patient is statin intolerant, non-statin medicines like ezetimibe can be used for treatment of cholesterol levels.
+info3.pdf: Examples of statins include atorvastatin, simvastatin, rosuvastatin and pravastatin.
+info4.pdf: If statins are not able to treat cholesterol levels to the target, additional non-statins medicines should be used to further lower cholesterol levels
+
+Answer:
+Statins like atorvastatin, rosuvastatin and pravastatin are commonly used to lower cholesterol levels [info1.txt][info3.pdf]. If a patient is statin intolerant, you can consider non-statin medicines like ezetimibe, evolocumab and alirocumab to reduce cholesterol levels to target. [info2.pdf][info4.pdf].
+
+###
+Question: '{q}'?
+
+Sources:
+{retrieved}
+
+Answer:
+>>>>>>> stream
 """
     answer = "In-network deductibles are $500 for employee and $1000 for family [info1.txt] and Overlake is in-network for the employee plan [info2.pdf][info4.pdf]."
 
+<<<<<<< HEAD
     def __init__(self, search_client: SearchClient, openai_deployment: str, chatgpt_model: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
         self.search_client = search_client
         self.openai_deployment = openai_deployment
         self.chatgpt_model = chatgpt_model
+=======
+    def __init__(self, search_client: SearchClient, openai_deployment: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
+        self.search_client = search_client
+        self.openai_deployment = openai_deployment
+>>>>>>> stream
         self.embedding_deployment = embedding_deployment
         self.sourcepage_field = sourcepage_field
         self.content_field = content_field
@@ -52,16 +85,26 @@ info4.pdf: In-network institutions include Overlake, Swedish and others in the r
         filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
 
         # If retrieval mode includes vectors, compute an embedding for the query
+<<<<<<< HEAD
         if has_vector:
+=======
+        if overrides.get("retrieval_mode") in ["vectors", "hybrid", None]:
+>>>>>>> stream
             query_vector = openai.Embedding.create(engine=self.embedding_deployment, input=q)["data"][0]["embedding"]
         else:
             query_vector = None
 
         # Only keep the text query if the retrieval mode uses text, otherwise drop it
+<<<<<<< HEAD
         query_text = q if has_text else None
 
         # Use semantic ranker if requested and if retrieval mode is text or hybrid (vectors + text)
         if overrides.get("semantic_ranker") and has_text:
+=======
+        query_text = q if overrides.get("retrieval_mode") != "vectors" else None
+
+        if overrides.get("semantic_ranker"):
+>>>>>>> stream
             r = self.search_client.search(query_text, 
                                           filter=filter,
                                           query_type=QueryType.SEMANTIC, 
@@ -70,6 +113,7 @@ info4.pdf: In-network institutions include Overlake, Swedish and others in the r
                                           semantic_configuration_name="default", 
                                           top=top, 
                                           query_caption="extractive|highlight-false" if use_semantic_captions else None,
+<<<<<<< HEAD
                                           vector=query_vector, 
                                           top_k=50 if query_vector else None, 
                                           vector_fields="embedding" if query_vector else None)
@@ -80,6 +124,11 @@ info4.pdf: In-network institutions include Overlake, Swedish and others in the r
                                           vector=query_vector, 
                                           top_k=50 if query_vector else None, 
                                           vector_fields="embedding" if query_vector else None)
+=======
+                                          vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+        else:
+            r = self.search_client.search(query_text, filter=filter, top=top, vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+>>>>>>> stream
         if use_semantic_captions:
             results = [doc[self.sourcepage_field] + ": " + nonewlines(" . ".join([c.text for c in doc['@search.captions']])) for doc in r]
         else:
@@ -103,6 +152,13 @@ info4.pdf: In-network institutions include Overlake, Swedish and others in the r
             messages=messages, 
             temperature=overrides.get("temperature") or 0.3, 
             max_tokens=1024, 
+<<<<<<< HEAD
             n=1)
         
         return {"data_points": results, "answer": chat_completion.choices[0].message.content, "thoughts": f"Question:<br>{query_text}<br><br>Prompt:<br>" + '\n\n'.join([str(message) for message in messages])}
+=======
+            n=1, 
+            stop=["\n"])
+
+        return {"data_points": results, "answer": completion.choices[0].text, "thoughts": f"Question:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
+>>>>>>> stream

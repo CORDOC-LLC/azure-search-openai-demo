@@ -3,7 +3,7 @@ from typing import Any, Sequence
 import openai
 import tiktoken
 from azure.search.documents import SearchClient
-from azure.search.documents.models import QueryType
+from azure.search.documents.models import QueryType, Vector
 from approaches.approach import Approach
 from text import nonewlines
 
@@ -11,6 +11,7 @@ from core.messagebuilder import MessageBuilder
 from core.modelhelper import get_token_limit
 
 class ChatReadRetrieveReadApproach(Approach):
+<<<<<<< HEAD
     # Chat roles
     SYSTEM = "system"
     USER = "user"
@@ -22,16 +23,28 @@ class ChatReadRetrieveReadApproach(Approach):
     (answer) with that prompt.
     """
     system_message_chat_conversation = """Assistant helps the company employees with their healthcare plan questions, and questions about the employee handbook. Be brief in your answers.
+=======
+    prompt_prefix = """<|im_start|>system
+Assistant helps with answer their questions regarding patient management guidelines and expert recommendations. Be brief in your answers.
+>>>>>>> stream
 Answer ONLY with the facts listed in the list of sources below. If there isn't enough information below, say you don't know. Do not generate answers that don't use the sources below. If asking a clarifying question to the user would help, ask the question.
 For tabular information return it as an html table. Do not return markdown format. If the question is not in English, answer in the language used in the question.
 Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response. Use square brackets to reference the source, e.g. [info1.txt]. Don't combine sources, list each source separately, e.g. [info1.txt][info2.pdf].
 {follow_up_questions_prompt}
 {injected_prompt}
 """
+<<<<<<< HEAD
     follow_up_questions_prompt_content = """Generate three very brief follow-up questions that the user would likely ask next about their healthcare plan and employee handbook. 
 Use double angle brackets to reference the questions, e.g. <<Are there exclusions for prescriptions?>>.
 Try not to repeat questions that have already been asked.
 Only generate questions and do not generate any text before or after the questions, such as 'Next Questions'"""
+=======
+
+    follow_up_questions_prompt_content = """Generate three very brief follow-up questions that the user would likely ask next about the cardiology guidelines. 
+    Use double angle brackets to reference the questions, e.g. <<Are there exclusions for prescriptions?>>.
+    Try not to repeat questions that have already been asked.
+    Only generate questions and do not generate any text before or after the questions, such as 'Next Questions'"""
+>>>>>>> stream
 
     query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about employee healthcare plans and the employee handbook.
 Generate a search query based on the conversation and the new question. 
@@ -48,10 +61,17 @@ If you cannot generate a search query, return just the number 0.
         {'role' : ASSISTANT, 'content' : 'Health plan cardio coverage' }
     ]
 
+<<<<<<< HEAD
     def __init__(self, search_client: SearchClient, chatgpt_deployment: str, chatgpt_model: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
         self.search_client = search_client
         self.chatgpt_deployment = chatgpt_deployment
         self.chatgpt_model = chatgpt_model
+=======
+    def __init__(self, search_client: SearchClient, chatgpt_deployment: str, gpt_deployment: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
+        self.search_client = search_client
+        self.chatgpt_deployment = chatgpt_deployment
+        self.gpt_deployment = gpt_deployment
+>>>>>>> stream
         self.embedding_deployment = embedding_deployment
         self.sourcepage_field = sourcepage_field
         self.content_field = content_field
@@ -83,26 +103,44 @@ If you cannot generate a search query, return just the number 0.
             messages=messages, 
             temperature=0.0, 
             max_tokens=32, 
+<<<<<<< HEAD
             n=1)
         
         query_text = chat_completion.choices[0].message.content
         if query_text.strip() == "0":
             query_text = history[-1]["user"] # Use the last user input if we failed to generate a better query
+=======
+            n=1, 
+            stop=["\n"])
+        query_text = completion.choices[0].text
+>>>>>>> stream
 
         # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
 
         # If retrieval mode includes vectors, compute an embedding for the query
+<<<<<<< HEAD
         if has_vector:
+=======
+        if overrides.get("retrieval_mode") in ["vectors", "hybrid", None]:
+>>>>>>> stream
             query_vector = openai.Embedding.create(engine=self.embedding_deployment, input=query_text)["data"][0]["embedding"]
         else:
             query_vector = None
 
+<<<<<<< HEAD
          # Only keep the text query if the retrieval mode uses text, otherwise drop it
         if not has_text:
             query_text = None
 
         # Use semantic L2 reranker if requested and if retrieval mode is text or hybrid (vectors + text)
         if overrides.get("semantic_ranker") and has_text:
+=======
+        # Only keep the text query if the retrieval mode uses text, otherwise drop it
+        if overrides.get("retrieval_mode") == "vectors":
+            query_text = None
+
+        if overrides.get("semantic_ranker"):
+>>>>>>> stream
             r = self.search_client.search(query_text, 
                                           filter=filter,
                                           query_type=QueryType.SEMANTIC, 
@@ -111,6 +149,7 @@ If you cannot generate a search query, return just the number 0.
                                           semantic_configuration_name="default", 
                                           top=top, 
                                           query_caption="extractive|highlight-false" if use_semantic_captions else None,
+<<<<<<< HEAD
                                           vector=query_vector, 
                                           top_k=50 if query_vector else None,
                                           vector_fields="embedding" if query_vector else None)
@@ -121,6 +160,11 @@ If you cannot generate a search query, return just the number 0.
                                           vector=query_vector, 
                                           top_k=50 if query_vector else None, 
                                           vector_fields="embedding" if query_vector else None)
+=======
+                                          vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+        else:
+            r = self.search_client.search(query_text, filter=filter, top=top, vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+>>>>>>> stream
         if use_semantic_captions:
             results = [doc[self.sourcepage_field] + ": " + nonewlines(" . ".join([c.text for c in doc['@search.captions']])) for doc in r]
         else:
@@ -155,11 +199,15 @@ If you cannot generate a search query, return just the number 0.
             max_tokens=1024, 
             n=1)
 
+<<<<<<< HEAD
         chat_content = chat_completion.choices[0].message.content
 
         msg_to_display = '\n\n'.join([str(message) for message in messages])
 
         return {"data_points": results, "answer": chat_content, "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>" + msg_to_display.replace('\n', '<br>')}
+=======
+        return {"data_points": results, "answer": completion.choices[0].text, "thoughts": f"Searched for:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
+>>>>>>> stream
     
     def get_messages_from_history(self, system_prompt: str, model_id: str, history: Sequence[dict[str, str]], user_conv: str, few_shots = [], max_tokens: int = 4096) -> []:
         message_builder = MessageBuilder(system_prompt, model_id)

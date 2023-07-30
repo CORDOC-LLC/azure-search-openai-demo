@@ -171,6 +171,15 @@ module openAi 'core/ai/cognitiveservices.bicep' = {
         }
         capacity: embeddingDeploymentCapacity
       }
+      {
+        name: embeddingDeploymentName
+        model: {
+          format: 'OpenAI'
+          name: embeddingModelName
+          version: '2'
+        }
+        capacity: embeddingDeploymentCapacity
+      }
     ]
   }
 }

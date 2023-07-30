@@ -2,7 +2,7 @@ import openai
 import re
 from approaches.approach import Approach
 from azure.search.documents import SearchClient
-from azure.search.documents.models import QueryType
+from azure.search.documents.models import QueryType, Vector
 from langchain.llms.openai import AzureOpenAI
 from langchain.prompts import PromptTemplate, BasePromptTemplate
 from langchain.callbacks.manager import CallbackManager
@@ -20,31 +20,48 @@ class ReadDecomposeAsk(Approach):
         self.sourcepage_field = sourcepage_field
         self.content_field = content_field
 
+<<<<<<< HEAD
     def search(self, query_text: str, overrides: dict[str, Any]) -> str:
         has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
         has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
         use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
+=======
+    def search(self, query_text: str, overrides: dict) -> str:
+        use_semantic_captions = True if overrides.get("semantic_captions") else False
+>>>>>>> stream
         top = overrides.get("top") or 3
         exclude_category = overrides.get("exclude_category") or None
         filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
 
         # If retrieval mode includes vectors, compute an embedding for the query
+<<<<<<< HEAD
         if has_vector:
+=======
+        if overrides.get("retrieval_mode") in ["vectors", "hybrid", None]:
+>>>>>>> stream
             query_vector = openai.Embedding.create(engine=self.embedding_deployment, input=query_text)["data"][0]["embedding"]
         else:
             query_vector = None
 
         # Only keep the text query if the retrieval mode uses text, otherwise drop it
+<<<<<<< HEAD
         if not has_text:
             query_text = None
 
         if overrides.get("semantic_ranker") and has_text:
+=======
+        if overrides.get("retrieval_mode") == "vectors":
+            query_text = None
+
+        if overrides.get("semantic_ranker"):
+>>>>>>> stream
             r = self.search_client.search(query_text,
                                           filter=filter,
                                           query_type=QueryType.SEMANTIC, 
                                           query_language="en-us", 
                                           query_speller="lexicon", 
                                           semantic_configuration_name="default", 
+<<<<<<< HEAD
                                           top=top,
                                           query_caption="extractive|highlight-false" if use_semantic_captions else None,
                                           vector=query_vector, 
@@ -57,6 +74,13 @@ class ReadDecomposeAsk(Approach):
                                           vector=query_vector, 
                                           top_k=50 if query_vector else None, 
                                           vector_fields="embedding" if query_vector else None)
+=======
+                                          top = top,
+                                          query_caption="extractive|highlight-false" if use_semantic_captions else None,
+                                          vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+        else:
+            r = self.search_client.search(query_text, filter=filter, top=top, vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+>>>>>>> stream
         if use_semantic_captions:
             self.results = [doc[self.sourcepage_field] + ":" + nonewlines(" . ".join([c.text for c in doc['@search.captions'] ])) for doc in r]
         else:

@@ -20,7 +20,9 @@ The repo includes sample data so it's ready to try end to end. In this sample ap
 
 ## Getting Started
 
-> **IMPORTANT:** In order to deploy and run this example, you'll need an **Azure subscription with access enabled for the Azure OpenAI service**. You can request access [here](https://aka.ms/oaiapply). You can also visit [here](https://azure.microsoft.com/free/cognitive-search/) to get some free Azure credits to get you started.
+> **IMPORTANT:** In order to deploy and run this example, you'll need:
+> * An **Azure subscription with access enabled for the Azure OpenAI service**. You can request access [here](https://aka.ms/oaiapply). You can also visit [here](https://azure.microsoft.com/free/cognitive-search/) to get some free Azure credits to get you started.
+> * Access to Cognitive Search vector search private preview, since this is the vector search-enabled version of this sample. You can sign up [here](https://aka.ms/VectorSearchSignUp).
 
 > **AZURE RESOURCE COSTS** by default this sample will create Azure App Service and Azure Cognitive Search resources that have a monthly cost, as well as Form Recognizer resource that has cost per document page. You can switch them to free versions of each of them if you want to avoid this cost by changing the parameters file under the infra folder (though there are some limits to consider; for example, you can have up to 1 free Cognitive Search resource per subscription, and the free Form Recognizer resource only analyzes the first 2 pages of each document.)
 
@@ -53,7 +55,14 @@ You can run this repo virtually by using GitHub Codespaces or VS Code Remote Con
 1. Create a new folder and switch to it in the terminal
 1. Run `azd auth login`
 1. Run `azd init -t azure-search-openai-demo`
+<<<<<<< HEAD
+=======
+    * For the target location, the regions that currently support the models used in this sample are **East US** or **South Central US**. For an up-to-date list of regions and models, check [here](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/concepts/models)
+<<<<<<< HEAD
+=======
+>>>>>>> stream
     * note that this command will initialize a git repository and you do not need to clone this repository
+>>>>>>> upstream/main
 
 #### Starting from scratch
 
